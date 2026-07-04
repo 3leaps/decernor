@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/decernor/fingerprint-config.v0.schema.json",
+  "title": "Decernor Fingerprint Config v0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "v0"
+    },
+    "kind": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "ssh",
+          "gpg",
+          "minisign"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "class": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "public",
+          "private",
+          "other"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "exclude": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "format": {
+      "enum": [
+        "ndjson",
+        "json"
+      ]
+    },
+    "fail_on_empty": {
+      "type": "boolean"
+    },
+    "max_file_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "path_mode": {
+      "enum": [
+        "relative",
+        "hash",
+        "none"
+      ]
+    }
+  }
+}

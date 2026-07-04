@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/decernor/fingerprint-record.v0.schema.json",
+  "title": "Decernor Fingerprint Record v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "class",
+    "algorithm",
+    "fingerprint",
+    "fingerprint_scheme",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v0"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "gpg",
+        "ssh",
+        "minisign"
+      ]
+    },
+    "class": {
+      "enum": [
+        "public",
+        "private",
+        "other"
+      ]
+    },
+    "algorithm": {
+      "enum": [
+        "openpgp-fingerprint",
+        "sha256",
+        "minisign-key-id"
+      ]
+    },
+    "fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "fingerprint_scheme": {
+      "enum": [
+        "openpgp-fingerprint-v1",
+        "ssh-rfc4253-public-blob-sha256-v1",
+        "minisign-key-id-v1",
+        "minisign-public-blob-sha256-v1"
+      ]
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "reason": {
+      "enum": [
+        "encrypted-private-no-public-counterpart",
+        "helper-unavailable",
+        "parse-unsupported",
+        "too-large",
+        "unreadable",
+        "unsupported-kind",
+        "unsupported-version"
+      ]
+    }
+  }
+}

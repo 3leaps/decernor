@@ -1,0 +1,72 @@
+# yamllint disable rule:document-start
+# yamllint disable rule:truthy
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+# The goneat-tools-runner image is the toolchain: Go, goneat, golangci-lint,
+# and foundation formatters are bundled and version-matched. Do not install Go
+# or other tools in the job, because doing so can shadow the bundled binaries.
+defaults:
+  run:
+    # Container run: steps use the image's /bin/sh, which is `dash` here.
+    # Force bash so `set -euo pipefail` and friends work.
+    shell: bash
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    container:
+      # glibc runner is the default; a `-musl` variant exists for Alpine.
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.4.2
+      # actions/checkout@v4 needs write access to
+      # /__w/_temp/_runner_file_commands/.
+      options: --user root
+    env:
+      # CI-only boundary hint for gofulmen/pathfinder repo-root discovery
+      FULMEN_WORKSPACE_ROOT: ${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup (temp perms + git safe.directory)
+        run: |
+          set -euo pipefail
+          install -d -m 0777 /__w/_temp || true
+          install -d -m 0777 /__w/_temp/_runner_file_commands || true
+          chown -R "$(id -u)":"$(id -g)" /__w/_temp || true
+          chmod -R 777 /__w/_temp || true
+          # Avoid git "dubious ownership" on the container-owned checkout, which
+          # breaks Go VCS stamping and any `git` call in the Makefile.
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - name: Verify toolchain (no installs)
+        run: |
+          set -euo pipefail
+          echo "=== Bundled toolchain (from image) ==="
+          go version
+          goneat --version
+          golangci-lint version
+          prettier --version
+          yamlfmt --version
+          # The go.mod directive must match the image's bundled Go; assert the
+          # image is the expected major.minor so version skew fails loudly.
+          go version | grep -q 'go1\.26' || {
+            echo "::error::Need Go 1.26.x from runner image; got $(go version)"
+            exit 1
+          }
+      - name: Verify embedded identity mirror
+        run: make verify-embedded-identity
+      - name: Download modules
+        run: go mod download
+      - name: Format check (non-mutating)
+        run: make fmt-check
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Build binary
+        run: make build
+      - name: Standalone binary works outside repo
+        run: make test-standalone-binary

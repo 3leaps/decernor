@@ -1,0 +1,52 @@
+{
+  "$schema": "../schemas/readiness-config.v0.schema.json",
+  "schema_version": "v0",
+  "name": "hardware-preferred",
+  "description": "Stricter posture for environments where software-held keys are transitional only.",
+  "mode": "workstation",
+  "sensitivity_floor": "5-privileged",
+  "allow_software_keys": true,
+  "hardware_preferred": true,
+  "hardware_required": false,
+  "require_strong_passphrase_attestation": true,
+  "capabilities": [
+    {
+      "id": "gpg-sign",
+      "provider": "gpg",
+      "verb": "sign",
+      "accepted_material": [
+        "protected-secret-key",
+        "hardware-backed-key"
+      ],
+      "require_public_counterpart": true,
+      "require_revocation_certificate": true,
+      "static_checks": [
+        "material-present",
+        "not-plaintext",
+        "public-counterpart",
+        "revocation-present"
+      ],
+      "proof_checks": [
+        "sign-and-verify"
+      ]
+    },
+    {
+      "id": "ssh-auth",
+      "provider": "ssh",
+      "verb": "auth",
+      "accepted_material": [
+        "encrypted-private-key",
+        "hardware-backed-key"
+      ],
+      "require_public_counterpart": true,
+      "static_checks": [
+        "material-present",
+        "not-plaintext",
+        "public-counterpart"
+      ],
+      "proof_checks": [
+        "derive-public-key"
+      ]
+    }
+  ]
+}

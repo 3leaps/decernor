@@ -1,0 +1,15 @@
+{
+  "schema_version": "v0",
+  "kind": [
+    "minisign"
+  ],
+  "class": [
+    "public"
+  ],
+  "include": [
+    "**/*.pub"
+  ],
+  "format": "ndjson",
+  "fail_on_empty": true,
+  "path_mode": "relative"
+}

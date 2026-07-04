@@ -1,0 +1,79 @@
+# yamllint disable rule:document-start
+# yamllint disable rule:truthy
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+# The goneat-tools-runner image is the toolchain. Do not install Go or other
+# tools in the job, because doing so can shadow the bundled binaries.
+defaults:
+  run:
+    shell: bash
+jobs:
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.4.2
+      options: --user root
+    env:
+      # CI-only boundary hint for repo-root discovery
+      FULMEN_WORKSPACE_ROOT: ${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup (temp perms + git safe.directory)
+        run: |
+          set -euo pipefail
+          install -d -m 0777 /__w/_temp || true
+          install -d -m 0777 /__w/_temp/_runner_file_commands || true
+          chown -R "$(id -u)":"$(id -g)" /__w/_temp || true
+          chmod -R 777 /__w/_temp || true
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - name: Verify toolchain (no installs)
+        run: |
+          set -euo pipefail
+          go version
+          goneat --version
+          go version | grep -q 'go1\.26' || {
+            echo "::error::Need Go 1.26.x from runner image; got $(go version)"
+            exit 1
+          }
+      - name: Verify embedded identity mirror
+        run: make verify-embedded-identity
+      - name: Validate VERSION matches tag
+        run: |
+          set -euo pipefail
+          FILE_VERSION=$(cat VERSION)
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION file: $FILE_VERSION"
+          echo "Git tag: $TAG_VERSION"
+          if [ "$FILE_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::VERSION ($FILE_VERSION) != tag ($TAG_VERSION)"
+            exit 1
+          fi
+      - name: Download modules
+        run: go mod download
+      - name: Quality gates (non-mutating)
+        run: |
+          set -euo pipefail
+          make fmt-check
+          make lint
+          make test
+      - name: Package artifacts
+        run: make package
+      - name: Publish GitHub Release (draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          # Stage as a draft so a maintainer verifies binaries before publish.
+          # Flip to false (or remove) to auto-publish.
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/release/*

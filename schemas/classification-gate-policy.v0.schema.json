@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/decernor/classification-gate-policy.v0.schema.json",
+  "title": "Decernor Classification Gate Policy v0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "schema_version": {
+      "const": "v0"
+    },
+    "deny_unknown_sensitivity": {
+      "type": "boolean",
+      "default": true
+    },
+    "deny_missing_sensitivity": {
+      "type": "boolean",
+      "default": true
+    },
+    "deny_pushdown_unrestricted": {
+      "type": "boolean",
+      "default": true
+    },
+    "allow_unknown_sensitivity": {
+      "type": "boolean"
+    },
+    "allow_unclassified_sensitivity": {
+      "type": "boolean"
+    },
+    "allow_pushdown_unrestricted": {
+      "type": "boolean"
+    },
+    "allowed_sensitivities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/known_sensitivity"
+      },
+      "uniqueItems": true
+    },
+    "deny_reasons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/denial_reason"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "known_sensitivity": {
+      "type": "string",
+      "enum": [
+        "0-public",
+        "public",
+        "1-confidential",
+        "internal",
+        "2-blinded",
+        "3-proprietary",
+        "controlled",
+        "4-personal",
+        "5-privileged",
+        "restricted",
+        "6-eyes-only"
+      ]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "sensitivity-unknown-denied",
+        "sensitivity-missing-denied",
+        "unclassifiable",
+        "pushdown-not-permitted"
+      ]
+    }
+  }
+}

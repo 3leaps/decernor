@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/decernor/readiness-config.v0.schema.json",
+  "title": "Decernor Readiness Configuration",
+  "description": "Local readiness policy for proving that key material can support required capabilities without transmitting key material.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "name",
+    "capabilities"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "schema_version": {
+      "const": "v0"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "artifact",
+        "workstation",
+        "handoff"
+      ],
+      "default": "artifact",
+      "description": "Policy posture for interpreting retained assets."
+    },
+    "sensitivity_floor": {
+      "$ref": "#/$defs/sensitivity_level",
+      "default": "5-privileged",
+      "description": "Minimum sensitivity applied to private signing/authentication material."
+    },
+    "allow_software_keys": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether passphrase-protected software-held private keys may satisfy readiness."
+    },
+    "hardware_preferred": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether reports should recommend hardware-backed keys even when software keys pass."
+    },
+    "hardware_required": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether software-held private keys fail readiness even when encrypted."
+    },
+    "require_strong_passphrase_attestation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the operator must attest that passphrases meet local strength policy."
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/capability_requirement"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sensitivity_level": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "0-public",
+        "1-confidential",
+        "2-blinded",
+        "3-proprietary",
+        "4-personal",
+        "5-privileged",
+        "6-eyes-only"
+      ]
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "gpg",
+        "ssh",
+        "minisign"
+      ]
+    },
+    "verb": {
+      "type": "string",
+      "enum": [
+        "sign",
+        "encrypt",
+        "decrypt",
+        "auth"
+      ]
+    },
+    "capability_requirement": {
+      "type": "object",
+      "required": [
+        "id",
+        "provider",
+        "verb"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "provider": {
+          "$ref": "#/$defs/provider"
+        },
+        "verb": {
+          "$ref": "#/$defs/verb"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "accepted_material": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "public-key",
+              "encrypted-private-key",
+              "protected-secret-key",
+              "hardware-backed-key",
+              "revocation-certificate"
+            ]
+          },
+          "uniqueItems": true,
+          "default": [
+            "encrypted-private-key",
+            "protected-secret-key",
+            "hardware-backed-key"
+          ]
+        },
+        "require_public_counterpart": {
+          "type": "boolean",
+          "default": true
+        },
+        "require_revocation_certificate": {
+          "type": "boolean",
+          "default": false
+        },
+        "static_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check_name"
+          },
+          "uniqueItems": true,
+          "default": [
+            "material-present",
+            "not-plaintext",
+            "public-counterpart"
+          ]
+        },
+        "proof_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check_name"
+          },
+          "uniqueItems": true,
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "check_name": {
+      "type": "string",
+      "enum": [
+        "material-present",
+        "not-plaintext",
+        "public-counterpart",
+        "revocation-present",
+        "sign-and-verify",
+        "encrypt-and-decrypt",
+        "derive-public-key",
+        "remote-auth"
+      ]
+    }
+  }
+}

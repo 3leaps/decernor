@@ -1,0 +1,17 @@
+# Fulmen Application Identity
+# This file defines the application's identity metadata for integration with
+# the Fulmen ecosystem (gofulmen, Crucible, etc.)
+app:
+  # Vendor/organization name (used for config paths and namespaces)
+  vendor: 3leaps
+  # Binary name (used for executable and user-facing CLI identity)
+  binary_name: decernor
+  # Environment variable prefix (MUST end with underscore)
+  # Used for env vars such as DECERNOR_LOG_LEVEL and DECERNOR_CONFIG_PATH.
+  env_prefix: DECERNOR_
+  # Config file name (without extension); resolves to ~/.config/3leaps/decernor.yaml.
+  config_name: decernor
+  description: "Local key-material hygiene and readiness checks"
+  version: "0.1.0"
+metadata:
+  repository_category: cli
