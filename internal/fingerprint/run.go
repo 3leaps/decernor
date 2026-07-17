@@ -189,10 +189,15 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 		return []Record{record}
 	case scanner.ArtifactKindMinisign:
 		if record.Class != scanner.ArtifactClassPublic {
-			record.Reason = scanner.ArtifactReasonEncryptedPrivateNoPublicCounterpart
+			// Preserve classifier reasons (e.g. parse-unsupported on malformed
+			// public markers); only default private material to the encrypted-
+			// private reason when no reason was set.
+			if record.Reason == "" {
+				record.Reason = scanner.ArtifactReasonEncryptedPrivateNoPublicCounterpart
+			}
 			return []Record{record}
 		}
-		blob, ok := minisignPublicBlob(data)
+		blob, ok := scanner.ParseMinisignPublicKeyFile(data)
 		if !ok {
 			record.Reason = scanner.ArtifactReasonParseUnsupported
 			return []Record{record}
@@ -362,41 +367,6 @@ func readUint32(reader *bytes.Reader) (uint32, bool) {
 func sshSHA256(blob []byte) string {
 	sum := sha256.Sum256(blob)
 	return "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:])
-}
-
-// minisignPublicBlobLen is the byte length of a minisign Ed25519 public-key
-// blob: a 2-byte signature-algorithm tag, an 8-byte key ID, and a 32-byte
-// Ed25519 public key.
-const minisignPublicBlobLen = 2 + 8 + 32
-
-func minisignPublicBlob(data []byte) ([]byte, bool) {
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.Contains(line, ":") {
-			continue
-		}
-		decoded, err := base64.StdEncoding.DecodeString(line)
-		if err != nil || !validMinisignPublicBlob(decoded) {
-			continue
-		}
-		return decoded, true
-	}
-	return nil, false
-}
-
-// validMinisignPublicBlob requires the canonical 42-byte minisign Ed25519
-// public-key shape before it can become a trust-anchor fingerprint, so a
-// malformed or truncated `.pub` cannot mint a spurious anchor.
-func validMinisignPublicBlob(blob []byte) bool {
-	if len(blob) != minisignPublicBlobLen {
-		return false
-	}
-	switch string(blob[:2]) {
-	case "Ed", "ED":
-		return true
-	default:
-		return false
-	}
 }
 
 func minisignKeyID(blob []byte) string {

@@ -113,11 +113,44 @@ func TestRunFingerprintsMinisignPublicKeyIDAndBlobSHA256(t *testing.T) {
 	}
 }
 
+func TestRunFingerprintsMinisignPublicWithNonCanonicalUntrustedComment(t *testing.T) {
+	// Ceremony/synthcorpus fixtures use editable untrusted-comment stamps that
+	// are not the historical "minisign public key" marker. DDR-0001 excludes
+	// comment text from the trust surface; blob-sha256 must still emit.
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x38, 0x46, 0x0d, 0x22, 0xb3, 0x78, 0x01, 0xaa}...)
+	payload = append(payload, bytes.Repeat([]byte{0x11}, 32)...)
+	mustWrite(t, filepath.Join(dir, "minisign-plain.pub"),
+		"untrusted comment: synthcorpus generated-real TEST KEY - DO NOT USE (public plain)\n"+
+			base64.StdEncoding.EncodeToString(payload)+"\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 2 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	records := recordsByScheme(result.Records)
+	if _, ok := records[SchemeMinisignKeyID]; !ok {
+		t.Fatalf("missing key-id record: %#v", result.Records)
+	}
+	blobRecord := records[SchemeMinisignPublicBlobSHA256]
+	if blobRecord.FingerprintScheme != SchemeMinisignPublicBlobSHA256 {
+		t.Fatalf("blob scheme=%q", blobRecord.FingerprintScheme)
+	}
+	if blobRecord.Fingerprint == nil || *blobRecord.Fingerprint != minisignPublicBlobSHA256(payload) {
+		t.Fatalf("blob fingerprint record=%#v", blobRecord)
+	}
+	if blobRecord.KeyID != "38460D22B37801AA" {
+		t.Fatalf("key id = %q", blobRecord.KeyID)
+	}
+}
+
 func TestRunMinisignMalformedPublicBlobIsNullReason(t *testing.T) {
 	dir := t.TempDir()
-	// The "untrusted comment: minisign public key" marker classifies this as a
-	// minisign public key, but the decoded blob is not the canonical 42-byte
-	// Ed25519 public blob, so no collision-resistant anchor must be minted.
+	// Marker present without a complete public-key structure → not public/allowed;
+	// fingerprint emits null with parse-unsupported (no trust-anchor mint).
 	malformed := append([]byte("Ed"), bytes.Repeat([]byte{0x42}, 8)...) // 10 bytes, too short
 	mustWrite(t, filepath.Join(dir, "minisign.pub"), "untrusted comment: minisign public key\n"+base64.StdEncoding.EncodeToString(malformed)+"\n")
 
@@ -132,8 +165,47 @@ func TestRunMinisignMalformedPublicBlobIsNullReason(t *testing.T) {
 	if record.Fingerprint != nil {
 		t.Fatalf("expected no fingerprint, got %q", *record.Fingerprint)
 	}
+	if record.Class == scanner.ArtifactClassPublic {
+		t.Fatalf("class must not be public: %s", record.Class)
+	}
 	if record.Reason != scanner.ArtifactReasonParseUnsupported {
 		t.Fatalf("reason = %q", record.Reason)
+	}
+}
+
+func TestRunMinisignMixedExtraPayloadEmitsNoPublicAnchor(t *testing.T) {
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)
+	payload = append(payload, bytes.Repeat([]byte{0x42}, 32)...)
+	mustWrite(t, filepath.Join(dir, "mixed.pub"),
+		"untrusted comment: synthcorpus TEST KEY - DO NOT USE\n"+
+			base64.StdEncoding.EncodeToString(payload)+"\n"+
+			"opaque-extra-line\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 0 {
+		t.Fatalf("mixed payload must not mint fingerprint records: %#v", result.Records)
+	}
+}
+
+func TestRunMinisignColonBearingExtraPayloadEmitsNoPublicAnchor(t *testing.T) {
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)
+	payload = append(payload, bytes.Repeat([]byte{0x42}, 32)...)
+	mustWrite(t, filepath.Join(dir, "mixed-colon.pub"),
+		"untrusted comment: synthcorpus TEST KEY - DO NOT USE\n"+
+			base64.StdEncoding.EncodeToString(payload)+"\n"+
+			"opaque: additional non-public material\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 0 {
+		t.Fatalf("colon-bearing mixed payload must not mint fingerprint records: %#v", result.Records)
 	}
 }
 
