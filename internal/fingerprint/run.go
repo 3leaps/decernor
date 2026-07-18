@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -215,13 +216,19 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 		blobRecord.Fingerprint = &blobFingerprint
 		return []Record{record, blobRecord}
 	case scanner.ArtifactKindGPG:
-		fingerprints, unavailable := openPGPFingerprints(ctx, path, cfg.GPGTimeout)
-		if unavailable {
-			record.Reason = scanner.ArtifactReasonHelperUnavailable
+		// DDR-0001: class "other" (revocation certs, encrypted containers,
+		// keyring internals, …) has no safe fingerprint scheme. Short-circuit
+		// before the helper so a present gpg that rejects revocation-only
+		// import is not mislabeled helper-unavailable.
+		if record.Class == scanner.ArtifactClassOther || record.Reason == scanner.ArtifactReasonUnsupportedKind {
+			if record.Reason == "" {
+				record.Reason = scanner.ArtifactReasonUnsupportedKind
+			}
 			return []Record{record}
 		}
-		if len(fingerprints) == 0 {
-			record.Reason = scanner.ArtifactReasonParseUnsupported
+		fingerprints, reason := openPGPFingerprints(ctx, path, cfg.GPGTimeout)
+		if reason != "" {
+			record.Reason = reason
 			return []Record{record}
 		}
 		records := make([]Record, 0, len(fingerprints))
@@ -239,13 +246,23 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 	}
 }
 
-func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration) ([]string, bool) {
+// openPGPFingerprints runs an isolated gpg dry-run import.
+// On failure it returns a DDR-0001 reason:
+//   - helper-unavailable: gpg missing from PATH, not startable, temp home setup
+//     failed, or timeout (no material parse occurred)
+//   - parse-unsupported: a started gpg process rejected the material or emitted
+//     no usable fingerprint (ExitError path)
+func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration) ([]string, scanner.ArtifactReason) {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
+	gpgPath, err := exec.LookPath("gpg")
+	if err != nil {
+		return nil, scanner.ArtifactReasonHelperUnavailable
+	}
 	home, err := os.MkdirTemp("", "decernor-gpg-fp-")
 	if err != nil {
-		return nil, true
+		return nil, scanner.ArtifactReasonHelperUnavailable
 	}
 	defer func() {
 		_ = os.RemoveAll(home)
@@ -254,11 +271,23 @@ func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "gpg", "--batch", "--no-tty", "--homedir", home, "--with-colons", "--import-options", "show-only", "--dry-run", "--import", path)
+	// Isolated helper home only — never the operator default keyring.
+	// Use the resolved LookPath result so PATH is not re-resolved at exec time.
+	cmd := exec.CommandContext(ctx, gpgPath, "--batch", "--no-tty", "--homedir", home, "--with-colons", "--import-options", "show-only", "--dry-run", "--import", path)
 	cmd.Stdin = strings.NewReader("")
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, true
+		if ctx.Err() != nil {
+			return nil, scanner.ArtifactReasonHelperUnavailable
+		}
+		// A process that actually started and exited nonzero is a parse/reject.
+		// Start/setup failures (invalid image, permission, disappeared binary)
+		// are helper-unavailable — no material parse occurred.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, scanner.ArtifactReasonParseUnsupported
+		}
+		return nil, scanner.ArtifactReasonHelperUnavailable
 	}
 	seen := map[string]bool{}
 	var fingerprints []string
@@ -272,7 +301,10 @@ func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration
 			}
 		}
 	}
-	return fingerprints, false
+	if len(fingerprints) == 0 {
+		return nil, scanner.ArtifactReasonParseUnsupported
+	}
+	return fingerprints, ""
 }
 
 func isHexFingerprint(value string) bool {

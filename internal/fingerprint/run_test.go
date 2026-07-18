@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -235,6 +236,104 @@ func TestRunGPGPublicArmorEmitsNullRecordWhenHelperUnavailable(t *testing.T) {
 	}
 	if record.FingerprintScheme != SchemeGPGOpenPGPFingerprint {
 		t.Fatalf("scheme = %q", record.FingerprintScheme)
+	}
+}
+
+func TestRunGPGRevocationIsUnsupportedKindWithoutHelper(t *testing.T) {
+	// DDR-0001: revocation certificates are class other with unsupported-kind.
+	// A present gpg must not re-label them helper-unavailable.
+	dir := t.TempDir()
+	// Filename + public armor header is enough for the classifier path;
+	// content need not be a cryptographically valid rev cert.
+	mustWrite(t, filepath.Join(dir, "revocation.asc"), "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic-revocation\n-----END PGP PUBLIC KEY BLOCK-----\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{
+		Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 1 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	record := result.Records[0]
+	if record.Kind != scanner.ArtifactKindGPG || record.Class != scanner.ArtifactClassOther {
+		t.Fatalf("kind/class = %s/%s", record.Kind, record.Class)
+	}
+	if record.Fingerprint != nil {
+		t.Fatalf("fingerprint = %#v", record.Fingerprint)
+	}
+	if record.Reason != scanner.ArtifactReasonUnsupportedKind {
+		t.Fatalf("reason = %q (want unsupported-kind)", record.Reason)
+	}
+	if record.FingerprintScheme != SchemeGPGOpenPGPFingerprint {
+		t.Fatalf("scheme = %q", record.FingerprintScheme)
+	}
+}
+
+func TestRunGPGMalformedPublicIsParseUnsupportedWhenHelperPresent(t *testing.T) {
+	// When gpg is on PATH but rejects the material, reason is parse-unsupported
+	// (not helper-unavailable). Skip if this host has no gpg.
+	if _, err := exec.LookPath("gpg"); err != nil {
+		t.Skip("gpg not available")
+	}
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "release-key.asc"), "-----BEGIN PGP PUBLIC KEY BLOCK-----\nnot-a-real-key\n-----END PGP PUBLIC KEY BLOCK-----\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{
+		Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 1 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	record := result.Records[0]
+	if record.Class != scanner.ArtifactClassPublic {
+		t.Fatalf("class = %s", record.Class)
+	}
+	if record.Fingerprint != nil {
+		t.Fatalf("fingerprint = %#v", record.Fingerprint)
+	}
+	if record.Reason != scanner.ArtifactReasonParseUnsupported {
+		t.Fatalf("reason = %q (want parse-unsupported)", record.Reason)
+	}
+}
+
+func TestRunGPGNonExecutableHelperIsHelperUnavailable(t *testing.T) {
+	// LookPath succeeds for an executable-bit file that is not a valid OS
+	// image; the helper never starts, so reason must be helper-unavailable.
+	if runtime.GOOS == "windows" {
+		t.Skip("invalid-image exec failure shape differs on Windows")
+	}
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "gpg")
+	mustWrite(t, helper, "not-a-valid-gpg-binary\n")
+	if err := os.Chmod(helper, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	mustWrite(t, filepath.Join(dir, "release-key.asc"), "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+
+	result, err := Run(context.Background(), []string{dir}, Config{
+		Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 1 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	record := result.Records[0]
+	if record.Class != scanner.ArtifactClassPublic {
+		t.Fatalf("class = %s", record.Class)
+	}
+	if record.Fingerprint != nil {
+		t.Fatalf("fingerprint = %#v", record.Fingerprint)
+	}
+	if record.Reason != scanner.ArtifactReasonHelperUnavailable {
+		t.Fatalf("reason = %q (want helper-unavailable)", record.Reason)
 	}
 }
 
