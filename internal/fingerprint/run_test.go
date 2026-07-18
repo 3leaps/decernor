@@ -311,6 +311,12 @@ func TestRunUnreadableDiagnosticUsesPathPrivacy(t *testing.T) {
 	defer func() {
 		_ = os.Chmod(path, 0600)
 	}()
+	// Root (common in CI containers) ignores mode bits and can still read the
+	// file; the unreadable path is not exercisable under those privileges.
+	if f, err := os.Open(path); err == nil {
+		_ = f.Close()
+		t.Skip("process can still read mode-0000 file (e.g. root in CI)")
+	}
 
 	var diagnostics bytes.Buffer
 	result, err := Run(context.Background(), []string{dir}, Config{PathMode: PathModeHash}, &diagnostics)
