@@ -73,6 +73,16 @@ func artifactKindForFinding(f Finding) (ArtifactKind, bool) {
 		return ArtifactKindSSH, true
 	case ClassMinisignSecret:
 		return ArtifactKindMinisign, true
+	case ClassParseError:
+		if hasCodePrefix(f.Code, "MINISIGN-") {
+			return ArtifactKindMinisign, true
+		}
+		if hasCodePrefix(f.Code, "SSH-") || hasCodePrefix(f.Code, "PEM-") {
+			return ArtifactKindSSH, true
+		}
+		if hasCodePrefix(f.Code, "GPG-") {
+			return ArtifactKindGPG, true
+		}
 	case ClassEncrypted, ClassKeyringInternal, ClassProtectedSecret, ClassPublic, ClassRevocation, ClassUnsafeSecret:
 		if hasCodePrefix(f.Code, "MINISIGN-") {
 			return ArtifactKindMinisign, true

@@ -378,20 +378,8 @@ func classifyMinisignArtifact(path string, prefix []byte) (Artifact, bool) {
 			Recommendation: "No action required.",
 		})
 	}
-	if strings.Contains(lowerPrefix, minisignPublicMarker()) {
-		return mustArtifact(Finding{
-			Path:           path,
-			Code:           "MINISIGN-PUBLIC-KEY",
-			Priority:       PriorityP5,
-			Classification: ClassPublic,
-			Severity:       SeverityInfo,
-			Retention:      RetentionAllowed,
-			Exposure:       ExposurePublic,
-			Confidence:     ConfidenceHigh,
-			Evidence:       "minisign public key material detected",
-			Recommendation: "No action required.",
-		})
-	}
+	// All secret signals win before any public classification so mixed or
+	// misnamed material is never stamped public/allowed.
 	if strings.Contains(lowerPrefix, minisignEncryptedSecretMarker()) {
 		return mustArtifact(Finding{
 			Path:           path,
@@ -434,7 +422,119 @@ func classifyMinisignArtifact(path string, prefix []byte) (Artifact, bool) {
 			Recommendation: "Verify this is the intended minisign signing secret and that it is encrypted before retaining it.",
 		})
 	}
+	// Public key: require a complete public-key file structure. Untrusted-comment
+	// text is editable (DDR-0001) and is not a trust signal; only the single
+	// canonical 42-byte Ed25519 public blob payload is.
+	if _, ok := ParseMinisignPublicKeyFile(prefix); ok {
+		return mustArtifact(Finding{
+			Path:           path,
+			Code:           "MINISIGN-PUBLIC-KEY",
+			Priority:       PriorityP5,
+			Classification: ClassPublic,
+			Severity:       SeverityInfo,
+			Retention:      RetentionAllowed,
+			Exposure:       ExposurePublic,
+			Confidence:     ConfidenceHigh,
+			Evidence:       "minisign public key material detected",
+			Recommendation: "No action required.",
+		})
+	}
+	// Historical comment marker without a complete public-key structure is not
+	// high-confidence public/allowed material.
+	if strings.Contains(lowerPrefix, minisignPublicMarker()) {
+		return mustArtifact(Finding{
+			Path:           path,
+			Code:           "MINISIGN-PUBLIC-KEY-MALFORMED",
+			Priority:       PriorityP3,
+			Classification: ClassParseError,
+			Severity:       SeverityWarn,
+			Retention:      RetentionInspectManually,
+			Exposure:       ExposureUnknown,
+			Confidence:     ConfidenceLow,
+			Evidence:       "minisign public-key comment marker present without a complete public-key file structure",
+			Recommendation: "Inspect the file; a valid minisign public key is one untrusted-comment framing plus a single 42-byte Ed25519 public blob line.",
+		})
+	}
 	return Artifact{}, false
+}
+
+// minisignPublicBlobLen is the byte length of a minisign Ed25519 public-key
+// blob: 2-byte algorithm tag + 8-byte key ID + 32-byte public key.
+const minisignPublicBlobLen = 2 + 8 + 32
+
+// minisignPublicKeyFileMaxBytes bounds complete public-key files well above a
+// real minisign .pub (~100B) and strictly below scan prefixBytes (32 KiB). Any
+// candidate at or above this size fails closed so a truncated scan prefix
+// cannot prove whole-file public/allowed completeness.
+const minisignPublicKeyFileMaxBytes = 4 * 1024
+
+// minisignUntrustedCommentPrefix is the only permitted framing line on a
+// complete minisign public-key file (minisign grammar). Arbitrary colon-bearing
+// lines are not comments for structural purposes.
+const minisignUntrustedCommentPrefix = "untrusted comment:"
+
+// ParseMinisignPublicKeyFile reports whether data is a complete minisign
+// public-key file and returns its public blob. A complete file has:
+//   - total size strictly under minisignPublicKeyFileMaxBytes
+//   - zero or more empty lines
+//   - at most one line whose trimmed form begins with "untrusted comment:"
+//     (must appear before the blob when present)
+//   - exactly one payload line that base64-decodes to a canonical 42-byte
+//     Ed/ED public-key blob
+//
+// Any other non-empty line (including arbitrary "key: value" payloads) fails
+// closed. Shared by scan classification and fingerprint extraction.
+func ParseMinisignPublicKeyFile(data []byte) ([]byte, bool) {
+	if len(data) == 0 || len(data) >= minisignPublicKeyFileMaxBytes {
+		return nil, false
+	}
+	var blob []byte
+	foundBlob := false
+	foundComment := false
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if isMinisignUntrustedCommentLine(line) {
+			if foundBlob || foundComment {
+				// Comment after blob, or more than one comment, is not a
+				// single public-key file.
+				return nil, false
+			}
+			foundComment = true
+			continue
+		}
+		decoded, err := base64.StdEncoding.DecodeString(line)
+		if err != nil || !validMinisignPublicKeyBlob(decoded) {
+			return nil, false
+		}
+		if foundBlob {
+			return nil, false
+		}
+		blob = decoded
+		foundBlob = true
+	}
+	if !foundBlob {
+		return nil, false
+	}
+	return blob, true
+}
+
+func isMinisignUntrustedCommentLine(line string) bool {
+	return strings.HasPrefix(strings.ToLower(line), minisignUntrustedCommentPrefix)
+}
+
+func validMinisignPublicKeyBlob(blob []byte) bool {
+	if len(blob) != minisignPublicBlobLen {
+		return false
+	}
+	switch string(blob[:2]) {
+	case "Ed", "ED":
+		return true
+	default:
+		return false
+	}
 }
 
 func isMinisignSecretPath(path string) bool {

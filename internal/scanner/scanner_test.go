@@ -84,6 +84,75 @@ func TestScanClassifiesMinisignSecretByCommonFilename(t *testing.T) {
 	}
 }
 
+func TestScanMinisignPublicRejectsColonBearingExtraPayload(t *testing.T) {
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)
+	payload = append(payload, make([]byte, 32)...)
+	body := "untrusted comment: synthcorpus generated-real TEST KEY - DO NOT USE\n" +
+		base64.StdEncoding.EncodeToString(payload) + "\n" +
+		"opaque: additional non-public material\n"
+	mustWrite(t, filepath.Join(dir, "mixed.pub"), body)
+
+	result, err := scanWithPacketLister(context.Background(), dir, Config{}, fakePacketLister{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range result.Findings {
+		if f.Code == "MINISIGN-PUBLIC-KEY" || f.Classification == ClassPublic || f.Retention == RetentionAllowed {
+			t.Fatalf("colon-bearing mixed file must not be public/allowed: %#v", f)
+		}
+	}
+}
+
+func TestScanMinisignPublicRejectsPayloadBeyondPrefix(t *testing.T) {
+	// Production scan only feeds the first prefixBytes into the classifier.
+	// A valid public-key shape near the start with opaque payload after the
+	// structural max (and after prefix) must not stamp public/allowed.
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)
+	payload = append(payload, make([]byte, 32)...)
+	head := "untrusted comment: synthcorpus generated-real TEST KEY - DO NOT USE\n" +
+		base64.StdEncoding.EncodeToString(payload) + "\n"
+	// Build a file larger than scan prefixBytes with junk after a public-looking head.
+	// Size bound fails closed on the 32 KiB prefix itself (>= 4 KiB max).
+	buf := make([]byte, prefixBytes+1024)
+	copy(buf, head)
+	for i := len(head); i < len(buf); i++ {
+		buf[i] = 'x'
+	}
+	mustWrite(t, filepath.Join(dir, "huge.pub"), string(buf))
+
+	result, err := scanWithPacketLister(context.Background(), dir, Config{}, fakePacketLister{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range result.Findings {
+		if f.Code == "MINISIGN-PUBLIC-KEY" || (f.Classification == ClassPublic && f.Retention == RetentionAllowed) {
+			t.Fatalf("oversized/truncated-prefix candidate must not be public/allowed: %#v", f)
+		}
+	}
+}
+
+func TestScanMinisignCompletePublicStillClassifies(t *testing.T) {
+	dir := t.TempDir()
+	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)
+	payload = append(payload, make([]byte, 32)...)
+	body := "untrusted comment: synthcorpus generated-real TEST KEY - DO NOT USE\n" +
+		base64.StdEncoding.EncodeToString(payload) + "\n"
+	mustWrite(t, filepath.Join(dir, "minisign-plain.pub"), body)
+
+	result, err := scanWithPacketLister(context.Background(), dir, Config{}, fakePacketLister{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Code != "MINISIGN-PUBLIC-KEY" {
+		t.Fatalf("findings=%#v", result.Findings)
+	}
+	if result.Findings[0].Classification != ClassPublic || result.Findings[0].Retention != RetentionAllowed {
+		t.Fatalf("finding=%#v", result.Findings[0])
+	}
+}
+
 func TestScanClassifiesEncryptedPEMWithoutSSHKeygenRecommendation(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, "encrypted.pem"), privateHeader("ENCRYPTED")+"\n")
