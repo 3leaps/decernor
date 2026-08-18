@@ -55,6 +55,11 @@ func Run(ctx context.Context, inputs []string, cfg Config, diagnostics io.Writer
 		return Result{}, err
 	}
 	sortRecords(records)
+	if cfg.GPGRole != "" {
+		if err := applyGPGRoleSelection(&records, cfg.GPGRole); err != nil {
+			return Result{}, err
+		}
+	}
 	return Result{Records: records, Empty: len(records) == 0}, nil
 }
 
@@ -226,17 +231,19 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 			}
 			return []Record{record}
 		}
-		fingerprints, reason := openPGPFingerprints(ctx, path, cfg.GPGTimeout)
+		identities, reason := openPGPFingerprints(ctx, path, cfg.GPGTimeout)
 		if reason != "" {
 			record.Reason = reason
 			return []Record{record}
 		}
-		records := make([]Record, 0, len(fingerprints))
-		for _, value := range fingerprints {
+		records := make([]Record, 0, len(identities))
+		for _, identity := range identities {
 			next := record
 			next.Reason = ""
-			fingerprint := value
+			fingerprint := identity.Fingerprint
 			next.Fingerprint = &fingerprint
+			next.KeyRole = identity.KeyRole
+			next.KeyID = identity.KeyID
 			records = append(records, next)
 		}
 		return records
@@ -252,7 +259,7 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 //     failed, or timeout (no material parse occurred)
 //   - parse-unsupported: a started gpg process rejected the material or emitted
 //     no usable fingerprint (ExitError path)
-func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration) ([]string, scanner.ArtifactReason) {
+func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration) ([]openPGPIdentity, scanner.ArtifactReason) {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
@@ -289,35 +296,64 @@ func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration
 		}
 		return nil, scanner.ArtifactReasonHelperUnavailable
 	}
-	seen := map[string]bool{}
-	var fingerprints []string
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Split(line, ":")
-		if len(fields) > 9 && fields[0] == "fpr" {
-			value := strings.ToUpper(strings.TrimSpace(fields[9]))
-			if isHexFingerprint(value) && !seen[value] {
-				seen[value] = true
-				fingerprints = append(fingerprints, value)
-			}
-		}
-	}
-	if len(fingerprints) == 0 {
+	identities, err := parseOpenPGPColonIdentities(string(out))
+	if err != nil {
 		return nil, scanner.ArtifactReasonParseUnsupported
 	}
-	return fingerprints, ""
+	return identities, ""
 }
 
-func isHexFingerprint(value string) bool {
-	if len(value) < 32 {
-		return false
+func applyGPGRoleSelection(records *[]Record, role KeyRole) error {
+	if role != KeyRolePrimary {
+		return fmt.Errorf("unsupported gpg role %q", role)
 	}
-	for _, r := range value {
-		if r >= '0' && r <= '9' || r >= 'A' && r <= 'F' {
+	if err := enforcePrimaryCardinality(*records); err != nil {
+		return err
+	}
+	selected := make([]Record, 0, len(*records))
+	for _, record := range *records {
+		if record.Kind == scanner.ArtifactKindGPG && record.KeyRole == role && record.Fingerprint != nil {
+			selected = append(selected, record)
+		}
+	}
+	*records = selected
+	return nil
+}
+
+func enforcePrimaryCardinality(records []Record) error {
+	type fileKey struct {
+		input int
+		rel   string
+	}
+	type fileStat struct {
+		primaries int
+	}
+	stats := map[fileKey]*fileStat{}
+	order := make([]fileKey, 0)
+	for _, record := range records {
+		if record.Kind != scanner.ArtifactKindGPG {
 			continue
 		}
-		return false
+		if record.Class != scanner.ArtifactClassPublic && record.Class != scanner.ArtifactClassPrivate {
+			continue
+		}
+		key := fileKey{input: record.source.InputIndex, rel: record.source.RelPath}
+		st, ok := stats[key]
+		if !ok {
+			st = &fileStat{}
+			stats[key] = st
+			order = append(order, key)
+		}
+		if record.KeyRole == KeyRolePrimary && record.Fingerprint != nil {
+			st.primaries++
+		}
 	}
-	return true
+	for _, key := range order {
+		if n := stats[key].primaries; n != 1 {
+			return &SelectionError{Detail: fmt.Sprintf("named input must have exactly one GPG primary (found %d)", n)}
+		}
+	}
+	return nil
 }
 
 func sshPublicBlob(data []byte) ([]byte, bool, bool) {
@@ -407,7 +443,7 @@ func minisignKeyID(blob []byte) string {
 
 func minisignPublicBlobSHA256(blob []byte) string {
 	sum := sha256.Sum256(blob)
-	return "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:])
+	return hex.EncodeToString(sum[:])
 }
 
 func firstNonEmptyLine(text string) string {
@@ -556,6 +592,9 @@ func sortRecords(records []Record) {
 		}
 		if a.FingerprintScheme != b.FingerprintScheme {
 			return a.FingerprintScheme < b.FingerprintScheme
+		}
+		if a.KeyRole != b.KeyRole {
+			return a.KeyRole < b.KeyRole
 		}
 		aID := recordSortID(a)
 		bID := recordSortID(b)

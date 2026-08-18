@@ -168,6 +168,124 @@ func TestFingerprintCommand_ExplicitFormatOverridesConfig(t *testing.T) {
 	}
 }
 
+func TestFingerprintCommand_GPGRolePrimaryEmitsOneRecord(t *testing.T) {
+	dir := t.TempDir()
+	installCmdFakeGPG(t, dir)
+	path := filepath.Join(dir, "release-key.asc")
+	mustWriteFile(t, path, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+	mustWriteFile(t, path+".colon", ""+
+		"pub:u:3072:1:0000111122223333:1000:::escaESCA:::::\n"+
+		"fpr:::::::::AAAABBBBCCCCDDDDEEEEFFFF0000111122223333:\n"+
+		"sub:e:3072:1:7777888899990000:1000::::::s:\n"+
+		"fpr:::::::::1111222233334444555566667777888899990000:\n")
+
+	var err error
+	out := captureStdout(t, func() {
+		err = executeFingerprintForTest(t, "", []string{path, "--kind", "gpg", "--class", "public", "--format", "json", "--path-mode", "none", "--gpg-role", "primary"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"key_role": "primary"`) || strings.Contains(out, `"key_role": "subkey"`) {
+		t.Fatalf("stdout = %s", out)
+	}
+	if !strings.Contains(out, "AAAABBBBCCCCDDDDEEEEFFFF0000111122223333") {
+		t.Fatalf("stdout = %s", out)
+	}
+}
+
+func TestFingerprintCommand_GPGRolePrimaryRefusesZeroAndManyWithEmptyStdout(t *testing.T) {
+	dir := t.TempDir()
+	installCmdFakeGPG(t, dir)
+
+	none := filepath.Join(dir, "sub-only.asc")
+	mustWriteFile(t, none, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+	mustWriteFile(t, none+".colon", ""+
+		"sub:e:3072:1:7777888899990000:1000::::::s:\n"+
+		"fpr:::::::::1111222233334444555566667777888899990000:\n")
+
+	many := filepath.Join(dir, "two-primary.asc")
+	mustWriteFile(t, many, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+	mustWriteFile(t, many+".colon", ""+
+		"pub:u:3072:1:0000111122223333:1000:::escaESCA:::::\n"+
+		"fpr:::::::::AAAABBBBCCCCDDDDEEEEFFFF0000111122223333:\n"+
+		"pub:u:3072:1:1111222233334444:1000:::escaESCA:::::\n"+
+		"fpr:::::::::BBBBCCCCDDDDEEEEFFFF00001111222233334444:\n")
+
+	for _, format := range []string{"json", "ndjson"} {
+		for _, path := range []string{none, many} {
+			var err error
+			out := captureStdout(t, func() {
+				err = executeFingerprintForTest(t, "", []string{path, "--kind", "gpg", "--class", "public", "--format", format, "--gpg-role", "primary"})
+			})
+			if err == nil {
+				t.Fatalf("path=%s format=%s expected refusal", path, format)
+			}
+			if code := ExitCode(err, 1); code != 3 {
+				t.Fatalf("path=%s format=%s code=%d err=%v", path, format, code, err)
+			}
+			if len(out) != 0 {
+				t.Fatalf("path=%s format=%s stdout bytes=%d value=%q", path, format, len(out), out)
+			}
+		}
+	}
+}
+
+func TestFingerprintCommand_GPGRolePrimaryTwoNamedFiles(t *testing.T) {
+	dir := t.TempDir()
+	installCmdFakeGPG(t, dir)
+	a := filepath.Join(dir, "a.asc")
+	b := filepath.Join(dir, "b.asc")
+	mustWriteFile(t, a, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+	mustWriteFile(t, a+".colon", ""+
+		"pub:u:3072:1:0000111122223333:1000:::escaESCA:::::\n"+
+		"fpr:::::::::AAAABBBBCCCCDDDDEEEEFFFF0000111122223333:\n")
+	mustWriteFile(t, b, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n")
+	mustWriteFile(t, b+".colon", ""+
+		"pub:u:3072:1:1111222233334444:1000:::escaESCA:::::\n"+
+		"fpr:::::::::BBBBCCCCDDDDEEEEFFFF00001111222233334444:\n")
+
+	var err error
+	out := captureStdout(t, func() {
+		err = executeFingerprintForTest(t, "", []string{a, b, "--kind", "gpg", "--class", "public", "--format", "json", "--gpg-role", "primary", "--path-mode", "none"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "AAAABBBBCCCCDDDDEEEEFFFF0000111122223333") || !strings.Contains(out, "BBBBCCCCDDDDEEEEFFFF00001111222233334444") {
+		t.Fatalf("stdout = %s", out)
+	}
+}
+
+func TestFingerprintCommand_UnsupportedGPGRoleIsUsage(t *testing.T) {
+	dir := t.TempDir()
+	mustWriteFile(t, filepath.Join(dir, "id.pub"), "ssh-ed25519 "+base64.StdEncoding.EncodeToString(testCmdSSHPublicBlob())+"\n")
+	err := executeFingerprintForTest(t, "", []string{dir, "--gpg-role", "subkey"})
+	if err == nil {
+		t.Fatal("expected unsupported role error")
+	}
+	if code := ExitCode(err, 1); code != 2 {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+}
+
+func installCmdFakeGPG(t *testing.T, dir string) {
+	t.Helper()
+	script := `#!/bin/sh
+file=
+for a in "$@"; do file=$a; done
+if [ -f "$file.colon" ]; then
+  /bin/cat "$file.colon"
+  exit 0
+fi
+exit 2
+`
+	if err := os.WriteFile(filepath.Join(dir, "gpg"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func executeFingerprintForTest(t *testing.T, config string, args []string) error {
 	t.Helper()
 	oldConfigPath := configPath

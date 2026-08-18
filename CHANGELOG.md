@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Fingerprint records now emit `key_role` and a derived GPG long `key_id` on
+  successful OpenPGP identities, and spell minisign public-blob SHA-256 as
+  lowercase hex. `decernor fingerprint --gpg-role primary` selects the unique
+  primary on each named GPG identity file and refuses 0 or >1 primaries with no
+  stdout artifact.
+
 ### Added
 
 - Initial Decernor CLI application bootstrapped from the Fulmen microtool baseline.

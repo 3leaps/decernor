@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"errors"
 	"time"
 
 	"github.com/3leaps/decernor/internal/scanner"
@@ -25,6 +26,31 @@ const (
 	PathModeRelative PathMode = "relative"
 )
 
+type KeyRole string
+
+const (
+	KeyRolePrimary KeyRole = "primary"
+	KeyRoleSubkey  KeyRole = "subkey"
+)
+
+// SelectionError is a contract-token refusal: no unique selectable value.
+// The CLI maps it to exit 3 and must not emit a stdout artifact.
+type SelectionError struct {
+	Detail string
+}
+
+func (e *SelectionError) Error() string {
+	if e == nil || e.Detail == "" {
+		return "fingerprint selection refused"
+	}
+	return e.Detail
+}
+
+func IsSelectionError(err error) bool {
+	var sel *SelectionError
+	return errors.As(err, &sel)
+}
+
 type pathSource struct {
 	InputIndex int
 	RelPath    string
@@ -40,6 +66,7 @@ type Config struct {
 	Classes     map[scanner.ArtifactClass]bool
 	PathMode    PathMode
 	FailOnEmpty bool
+	GPGRole     KeyRole
 	GPGTimeout  time.Duration
 	EnableGPG   bool
 	EnableSSH   bool
@@ -55,6 +82,7 @@ type Record struct {
 	Fingerprint       *string                `json:"fingerprint"`
 	FingerprintScheme Scheme                 `json:"fingerprint_scheme"`
 	KeyID             string                 `json:"key_id,omitempty"`
+	KeyRole           KeyRole                `json:"key_role,omitempty"`
 	Confidence        scanner.Confidence     `json:"confidence"`
 	Reason            scanner.ArtifactReason `json:"reason,omitempty"`
 	source            pathSource
