@@ -88,6 +88,10 @@ func TestParseOpenPGPColonIdentitiesRejectsMalformed(t *testing.T) {
 			"pub:u:3072:1:"+testOtherID+":1000:::escaESCA:::::",
 			"fpr:::::::::"+testPrimaryFP+":",
 		),
+		"field-5 malformed nonempty": colonLines(
+			"pub:u:3072:1:NOT-A-LONG-ID:1000:::escaESCA:::::",
+			"fpr:::::::::"+testPrimaryFP+":",
+		),
 	}
 	for name, output := range cases {
 		if _, err := parseOpenPGPColonIdentities(output); err == nil {

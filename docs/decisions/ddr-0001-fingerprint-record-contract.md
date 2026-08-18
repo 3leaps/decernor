@@ -68,9 +68,9 @@ material**.
   `parse-unsupported`.
 - **`key_id`** — optional except on a successful GPG identity record, where it is
   the uppercase 16-hex long ID derived from the fingerprint suffix
-  (`fingerprint[24:]`). If the helper `pub`/`sub` (or `sec`/`ssb`) row supplies a
-  long ID, it is cross-checked against that suffix. Identity is never taken from
-  UID text.
+  (`fingerprint[24:]`). An empty helper field 5 may derive that suffix. A
+  non-empty field 5 must be uppercase 16-hex and equal the suffix; otherwise the
+  file is `parse-unsupported`. Identity is never taken from UID text.
 - **`key_role`** — closed enum `primary | subkey`. **Required** iff `kind=gpg`
   and `fingerprint` is a non-null string. **Prohibited** on every complementary
   branch (non-GPG records, and GPG records with a null fingerprint). Role is
@@ -80,13 +80,13 @@ material**.
 
 ## Encoding table
 
-| Token                 | Record filter                                            | `fingerprint` spelling                            |
-| --------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-| GPG identity          | `kind=gpg`, `scheme=openpgp-fingerprint-v1`              | uppercase 40-hex                                  |
-| GPG contract          | same + `key_role=primary`                                | uppercase 40-hex                                  |
-| Minisign trust-anchor | `kind=minisign`, `scheme=minisign-public-blob-sha256-v1` | lowercase 64-hex (no `SHA256:` prefix)            |
-| Minisign key id       | `scheme=minisign-key-id-v1`                              | 16 hex                                            |
-| SSH public blob       | `kind=ssh`, `scheme=ssh-rfc4253-public-blob-sha256-v1`   | `SHA256:` + exactly 43 unpadded base64 characters |
+| Token                 | Record filter                                            | `fingerprint` spelling                                                            |
+| --------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| GPG identity          | `kind=gpg`, `scheme=openpgp-fingerprint-v1`              | uppercase 40-hex                                                                  |
+| GPG contract          | same + `key_role=primary`                                | uppercase 40-hex                                                                  |
+| Minisign trust-anchor | `kind=minisign`, `scheme=minisign-public-blob-sha256-v1` | lowercase 64-hex (no `SHA256:` prefix)                                            |
+| Minisign key id       | `scheme=minisign-key-id-v1`                              | 16 hex                                                                            |
+| SSH public blob       | `kind=ssh`, `scheme=ssh-rfc4253-public-blob-sha256-v1`   | `SHA256:` + 42 base64 characters + canonical final character `[AEIMQUYcgkosw048]` |
 
 JSON Schema enforces those successful tuples. Encoding validation is keyed on
 `fingerprint_scheme`, not `algorithm`.

@@ -65,8 +65,8 @@ func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 				return nil, fmt.Errorf("openpgp colon: fingerprint is not uppercase 40-hex")
 			}
 			keyID := value[len(value)-openPGPLongKeyIDHexLen:]
-			if isOpenPGPLongKeyID(pendingKeyID) && pendingKeyID != keyID {
-				return nil, fmt.Errorf("openpgp colon: key id does not match fingerprint")
+			if pendingKeyID != "" && (!isOpenPGPLongKeyID(pendingKeyID) || pendingKeyID != keyID) {
+				return nil, fmt.Errorf("openpgp colon: key id is malformed or does not match fingerprint")
 			}
 			if seen[value] {
 				return nil, fmt.Errorf("openpgp colon: duplicate identity")

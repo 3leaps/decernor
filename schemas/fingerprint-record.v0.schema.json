@@ -237,7 +237,7 @@
           },
           "fingerprint": {
             "type": "string",
-            "pattern": "^SHA256:[A-Za-z0-9+/]{43}$"
+            "pattern": "^SHA256:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]$"
           }
         }
       }

@@ -716,20 +716,29 @@ func TestRunGPGMalformedColonIsParseUnsupported(t *testing.T) {
 		"fpr:::::::::"+testPrimaryFP+":",
 	))
 
-	result, err := Run(context.Background(), []string{path}, Config{
-		Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
-	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(result.Records) != 1 {
-		t.Fatalf("records=%#v", result.Records)
-	}
-	if result.Records[0].Fingerprint != nil || result.Records[0].KeyRole != "" {
-		t.Fatalf("record=%#v", result.Records[0])
-	}
-	if result.Records[0].Reason != scanner.ArtifactReasonParseUnsupported {
-		t.Fatalf("reason=%q", result.Records[0].Reason)
+	malformed := filepath.Join(dir, "malformed-id.asc")
+	mustWrite(t, malformed, syntheticPGPArmor())
+	mustWrite(t, malformed+".colon", colonLines(
+		"pub:u:3072:1:NOT-A-LONG-ID:1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+	))
+
+	for _, input := range []string{path, malformed} {
+		result, err := Run(context.Background(), []string{input}, Config{
+			Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Records) != 1 {
+			t.Fatalf("input=%s records=%#v", input, result.Records)
+		}
+		if result.Records[0].Fingerprint != nil || result.Records[0].KeyRole != "" {
+			t.Fatalf("input=%s record=%#v", input, result.Records[0])
+		}
+		if result.Records[0].Reason != scanner.ArtifactReasonParseUnsupported {
+			t.Fatalf("input=%s reason=%q", input, result.Records[0].Reason)
+		}
 	}
 }
 
