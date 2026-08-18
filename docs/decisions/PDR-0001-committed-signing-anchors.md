@@ -24,21 +24,17 @@ This is a **PDR**, not an EPR or DDR:
   This record is the ceremony and layout.
 - **Not ADR.** No new runtime component.
 
-## What lanytehq asked for, and what we locked
+## Producer / consumer contract
 
-CHAN-TASK-010 stood down because `fingerprint` did not emit one GPG
-contract value. DEC-011 locked the emitter:
+The emitter already defines one selectable GPG contract value (sole
+`openpgp-fingerprint-v1` with `key_role=primary`, uppercase 40-hex) and
+one minisign trust-anchor (`minisign-public-blob-sha256-v1`, lowercase
+64-hex in the record). Downstream release repos consume a two-line pin
+file plus a public-key verifier. This repository dogfoods that consumer
+path first so other tools can copy it.
 
-- GPG contract = sole `openpgp-fingerprint-v1` with `key_role=primary`
-  on that named public file (uppercase 40-hex).
-- Minisign contract = `minisign-public-blob-sha256-v1` **lowercase
-  64-hex in the record**. Verifiers copy that field; they do not run
-  `xxd | head -c 20`.
-- Inserter maps `decernor fingerprint` JSON/NDJSON → pin file. No
-  `gpg --show-keys`, no hand-typed hex.
-
-lanytehq's consumer path is `keys/expected-fingerprints.txt` plus
-`verify-public-keys.sh`. We dogfood **that** path here first.
+The inserter maps `decernor fingerprint` output onto the pin files. No
+second OpenPGP or minisign extractor. No hand-typed hex.
 
 ## Where the material is written
 
@@ -51,11 +47,11 @@ keys/
   expected-fingerprints.txt      # verifier contract (derived)
 ```
 
-| File                           | Role                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `expected-fingerprints.ndjson` | Exact stdout of `decernor fingerprint` on the **exported public files** (`--format ndjson --path-mode none --class public`). GPG run uses `--kind gpg --gpg-role primary`. Minisign run uses `--kind minisign` and keeps the `minisign-public-blob-sha256-v1` record (not the key-id record). Schema-valid DDR-0001 records. |
-| `expected-fingerprints.txt`    | Two lines, whitespace-separated: `gpg <40-hex>` and `minisign <64-hex>`. Values are **copied verbatim** from those records. This is what `verify-public-keys.sh` compares.                                                                                                                                                   |
-| `README.md`                    | Points at the inserter; does not restate hex.                                                                                                                                                                                                                                                                                |
+| File                           | Role                                                                                                                                                                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expected-fingerprints.ndjson` | Selected-record receipt: the GPG primary record and the minisign public-blob SHA-256 record from `decernor fingerprint` on the **exported public files** (`--format ndjson --path-mode none --class public`). Not raw dual-record minisign stdout. Schema-valid DDR-0001 records. |
+| `expected-fingerprints.txt`    | Two lines, whitespace-separated: `gpg <40-hex>` and `minisign <64-hex>`. Values are **copied verbatim** from those records. This is what `verify-public-keys.sh` compares.                                                                                                        |
+| `README.md`                    | Points at the inserter; does not restate hex.                                                                                                                                                                                                                                     |
 
 **Never committed:** private keys, keystore trees, minisign secret
 files, exported `.pub` / `.asc`, **or any filesystem path to those
@@ -90,14 +86,17 @@ Do not assume "put the file in `dist/release/` and the old script will
 hash it." Extend the checksum input set, or the pin stays unsigned
 commentary.
 
-**Order:**
+**Order** (matches `make release`):
 
-1. Download/build binaries
-2. `release-notes` (existing pattern)
-3. **`release-stage-anchors`** (new) — pin files + exported pubs
-4. `release-checksums` (must include the new files)
-5. `release-sign` (minisign required; PGP optional)
-6. Upload provenance with the draft
+1. Download unsigned archives
+2. `release-notes` — copy per-cut notes into `dist/release/`
+3. **`release-stage-anchors`** — copy committed pin files into `dist/release/`
+4. `release-checksums` — must include notes + both pin files + **at least one archive**
+5. `release-sign` — sign the SUMS (minisign required; PGP optional)
+6. `release-export-keys` — export publics **after** signing (they are upload
+   companions, not SUMS members; the pin in SUMS blesses them)
+7. Verify (checksums, signatures, **staged** pins vs recomputed publics)
+8. Upload provenance; draft stays draft
 
 A pin that is only in git and never in `SHA256SUMS` is commentary. A pin
 that is in `SHA256SUMS` and then signed is the load-bearing artifact.
@@ -138,13 +137,14 @@ The signed kit is a new cut: **`v0.1.3`**.
 
 ## Consequences
 
-- lanytehq can copy `keys/` + inserter + "copy into dist before
-  checksums" without inventing a layout.
-- `make release-verify-keys` asserts the pin, not "a pub file exists."
-- Chanvoy CHAN-TASK-010 can re-arm against the same file names and
-  DEC-011 record filters.
+- Other release repos can copy `keys/` + inserter +
+  `release-stage-anchors` without inventing a layout.
+- `make release-verify-keys` asserts the **staged** pin against
+  recomputed publics, not "a pub file exists."
+- The signed set is archives + notes + pin pair. Exported pubs ride
+  beside it and are checked against that pin.
 
 ## Out of scope
 
-Public flip. Changing DDR-0001. synthcorpus pin move. Hand-maintained
-hex in `RELEASE_NOTES.md`.
+Public visibility flip. Changing DDR-0001. Hand-maintained hex in
+`RELEASE_NOTES.md`.

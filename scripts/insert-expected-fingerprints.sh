@@ -50,13 +50,15 @@ gpg --batch --no-tty --homedir "$DECERNOR_GPG_HOMEDIR" --armor --export "$DECERN
 
 GPG_NDJSON="$WORKDIR/gpg.ndjson"
 MINI_NDJSON="$WORKDIR/mini.ndjson"
+STAGING="$WORKDIR/pair"
+mkdir -p "$STAGING"
 
 "$DECERNOR_BIN" fingerprint "$ASC" --class public --kind gpg \
 	--format ndjson --path-mode none --gpg-role primary >"$GPG_NDJSON"
 "$DECERNOR_BIN" fingerprint "$PUB" --class public --kind minisign \
 	--format ndjson --path-mode none >"$MINI_NDJSON"
 
-python3 - "$GPG_NDJSON" "$MINI_NDJSON" "$ROOT/keys" <<'PY'
+python3 - "$GPG_NDJSON" "$MINI_NDJSON" "$STAGING" <<'PY'
 import json
 import pathlib
 import sys
@@ -96,11 +98,59 @@ if len(mini_fp) != 64 or any(c not in "0123456789abcdef" for c in mini_fp):
     raise SystemExit("error: minisign fingerprint is not lowercase 64-hex")
 
 out_dir.mkdir(parents=True, exist_ok=True)
-ndjson_path = out_dir / "expected-fingerprints.ndjson"
-txt_path = out_dir / "expected-fingerprints.txt"
-# One GPG primary + the trust-anchor minisign record only.
-ndjson_path.write_text(json.dumps(g, separators=(",", ":")) + "\n" + json.dumps(m, separators=(",", ":")) + "\n")
-txt_path.write_text(f"gpg {gpg_fp}\nminisign {mini_fp}\n")
-print(f"[ok] wrote {ndjson_path}")
-print(f"[ok] wrote {txt_path}")
+# Selected-record receipt (primary + blob SHA only), not raw dual-record stdout.
+(out_dir / "expected-fingerprints.ndjson").write_text(
+    json.dumps(g, separators=(",", ":")) + "\n" + json.dumps(m, separators=(",", ":")) + "\n"
+)
+(out_dir / "expected-fingerprints.txt").write_text(f"gpg {gpg_fp}\nminisign {mini_fp}\n")
 PY
+
+SCHEMA="$ROOT/schemas/fingerprint-record.v0.schema.json"
+while IFS= read -r line; do
+	[ -n "$line" ] || continue
+	printf '%s\n' "$line" >"$WORKDIR/one.json"
+	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$WORKDIR/one.json" >/dev/null
+done <"$STAGING/expected-fingerprints.ndjson"
+
+KEYS="$ROOT/keys"
+mkdir -p "$KEYS"
+NEW_NDJSON="$KEYS/expected-fingerprints.ndjson.new"
+NEW_TXT="$KEYS/expected-fingerprints.txt.new"
+DEST_NDJSON="$KEYS/expected-fingerprints.ndjson"
+DEST_TXT="$KEYS/expected-fingerprints.txt"
+BAK_NDJSON="$KEYS/expected-fingerprints.ndjson.bak"
+BAK_TXT="$KEYS/expected-fingerprints.txt.bak"
+
+cp "$STAGING/expected-fingerprints.ndjson" "$NEW_NDJSON"
+cp "$STAGING/expected-fingerprints.txt" "$NEW_TXT"
+
+rollback() {
+	rm -f "$NEW_NDJSON" "$NEW_TXT"
+	if [ -f "$BAK_NDJSON" ]; then
+		mv -f "$BAK_NDJSON" "$DEST_NDJSON"
+	fi
+	if [ -f "$BAK_TXT" ]; then
+		mv -f "$BAK_TXT" "$DEST_TXT"
+	fi
+}
+
+if [ -f "$DEST_NDJSON" ]; then
+	cp "$DEST_NDJSON" "$BAK_NDJSON"
+fi
+if [ -f "$DEST_TXT" ]; then
+	cp "$DEST_TXT" "$BAK_TXT"
+fi
+
+if ! mv -f "$NEW_NDJSON" "$DEST_NDJSON"; then
+	rollback
+	echo "error: failed to install ndjson pin" >&2
+	exit 1
+fi
+if ! mv -f "$NEW_TXT" "$DEST_TXT"; then
+	rollback
+	echo "error: failed to install txt pin; restored previous pair" >&2
+	exit 1
+fi
+rm -f "$BAK_NDJSON" "$BAK_TXT"
+echo "[ok] wrote $DEST_NDJSON"
+echo "[ok] wrote $DEST_TXT"

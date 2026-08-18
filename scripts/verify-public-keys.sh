@@ -1,14 +1,30 @@
 #!/usr/bin/env bash
-# Public-only scan + pin match via decernor records (no second extractor).
+# Verify staged pins in dist/release (the signed objects), not only keys/.
+# Public-only scan + DDR-0001 validation + TXT/NDJSON/recomputed equality.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR=${1:-dist/release}
-PIN_TXT="$ROOT/keys/expected-fingerprints.txt"
+STAGED_TXT="$DIR/expected-fingerprints.txt"
+STAGED_NDJSON="$DIR/expected-fingerprints.ndjson"
+SCHEMA="$ROOT/schemas/fingerprint-record.v0.schema.json"
 
-if [ ! -f "$PIN_TXT" ]; then
-	echo "error: missing $PIN_TXT" >&2
+if [ ! -f "$STAGED_TXT" ] || [ ! -f "$STAGED_NDJSON" ]; then
+	echo "error: missing staged pins in $DIR" >&2
 	exit 2
+fi
+
+if [ -f "$ROOT/keys/expected-fingerprints.txt" ]; then
+	if ! cmp -s "$STAGED_TXT" "$ROOT/keys/expected-fingerprints.txt"; then
+		echo "error: staged TXT differs from keys/expected-fingerprints.txt" >&2
+		exit 1
+	fi
+fi
+if [ -f "$ROOT/keys/expected-fingerprints.ndjson" ]; then
+	if ! cmp -s "$STAGED_NDJSON" "$ROOT/keys/expected-fingerprints.ndjson"; then
+		echo "error: staged NDJSON differs from keys/expected-fingerprints.ndjson" >&2
+		exit 1
+	fi
 fi
 
 PUB="$DIR/decernor-minisign.pub"
@@ -36,27 +52,57 @@ if [ -z "$DECERNOR_BIN" ]; then
 	fi
 fi
 
+while IFS= read -r line; do
+	[ -n "$line" ] || continue
+	printf '%s\n' "$line" >"$DIR/.pin-one.json"
+	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$DIR/.pin-one.json" >/dev/null
+done <"$STAGED_NDJSON"
+rm -f "$DIR/.pin-one.json"
+
 GPG_JSON="$("$DECERNOR_BIN" fingerprint "$ASC" --class public --kind gpg --format json --path-mode none --gpg-role primary)"
 MINI_JSON="$("$DECERNOR_BIN" fingerprint "$PUB" --class public --kind minisign --format json --path-mode none)"
 
-python3 - "$PIN_TXT" "$GPG_JSON" "$MINI_JSON" <<'PY'
+python3 - "$STAGED_TXT" "$STAGED_NDJSON" "$GPG_JSON" "$MINI_JSON" <<'PY'
 import json
+import pathlib
 import sys
 
-pin_path, gpg_raw, mini_raw = sys.argv[1], sys.argv[2], sys.argv[3]
+txt_path, ndjson_path, gpg_raw, mini_raw = sys.argv[1:5]
+lines = [ln.strip() for ln in pathlib.Path(txt_path).read_text().splitlines() if ln.strip() and not ln.startswith("#")]
+if len(lines) != 2:
+    raise SystemExit("error: staged TXT must have exactly two non-comment lines")
 want = {}
-for line in open(pin_path):
-    line = line.strip()
-    if not line or line.startswith("#"):
-        continue
-    algo, fp, *_ = line.split()
+for line in lines:
+    parts = line.split()
+    if len(parts) < 2:
+        raise SystemExit("error: staged TXT line is malformed")
+    algo, fp = parts[0], parts[1]
+    if algo in want:
+        raise SystemExit(f"error: duplicate {algo} line in staged TXT")
     want[algo] = fp
+if set(want) != {"gpg", "minisign"}:
+    raise SystemExit("error: staged TXT must contain exactly one gpg and one minisign line")
+
+records = []
+for line in pathlib.Path(ndjson_path).read_text().splitlines():
+    if line.strip():
+        records.append(json.loads(line))
+gpg_rec = [r for r in records if r.get("fingerprint_scheme") == "openpgp-fingerprint-v1"]
+mini_rec = [r for r in records if r.get("fingerprint_scheme") == "minisign-public-blob-sha256-v1"]
+if len(gpg_rec) != 1 or gpg_rec[0].get("key_role") != "primary":
+    raise SystemExit("error: staged NDJSON must contain one GPG primary record")
+if len(mini_rec) != 1:
+    raise SystemExit("error: staged NDJSON must contain one minisign blob-SHA record")
+if gpg_rec[0].get("fingerprint") != want["gpg"]:
+    raise SystemExit("error: staged NDJSON GPG fingerprint != staged TXT")
+if mini_rec[0].get("fingerprint") != want["minisign"]:
+    raise SystemExit("error: staged NDJSON minisign fingerprint != staged TXT")
 
 gpg = json.loads(gpg_raw)
 if len(gpg) != 1 or gpg[0].get("key_role") != "primary":
-    raise SystemExit("error: GPG pin check did not yield one primary record")
-if gpg[0].get("fingerprint") != want.get("gpg"):
-    raise SystemExit("error: GPG fingerprint does not match keys/expected-fingerprints.txt")
+    raise SystemExit("error: GPG recompute did not yield one primary record")
+if gpg[0].get("fingerprint") != want["gpg"]:
+    raise SystemExit("error: recomputed GPG fingerprint does not match staged TXT")
 
 mini = [
     r
@@ -64,9 +110,9 @@ mini = [
     if r.get("fingerprint_scheme") == "minisign-public-blob-sha256-v1"
 ]
 if len(mini) != 1:
-    raise SystemExit("error: minisign pin check did not yield one blob-SHA record")
-if mini[0].get("fingerprint") != want.get("minisign"):
-    raise SystemExit("error: minisign fingerprint does not match keys/expected-fingerprints.txt")
+    raise SystemExit("error: minisign recompute did not yield one blob-SHA record")
+if mini[0].get("fingerprint") != want["minisign"]:
+    raise SystemExit("error: recomputed minisign fingerprint does not match staged TXT")
 
-print("[ok] exported publics match committed fingerprint pins")
+print("[ok] staged pins, schema, TXT/NDJSON, and recomputed publics agree")
 PY

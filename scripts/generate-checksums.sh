@@ -35,19 +35,19 @@ done
 
 echo "Generating checksums in $DIR for $TAG..."
 
-CHECKSUM_FILES=()
-for f in "$NOTES" "$PIN_TXT" "$PIN_NDJSON" \
-	"decernor_${VERSION}_"*.tar.gz \
-	"decernor_${VERSION}_"*.zip; do
+ARCHIVES=()
+for f in "decernor_${VERSION}_"*.tar.gz "decernor_${VERSION}_"*.zip; do
 	if [ -f "$f" ]; then
-		CHECKSUM_FILES+=("$f")
+		ARCHIVES+=("$f")
 	fi
 done
-
-if [ ${#CHECKSUM_FILES[@]} -lt 3 ]; then
-	echo "Error: no archive candidates for $TAG in $DIR" >&2
+if [ ${#ARCHIVES[@]} -eq 0 ]; then
+	echo "Error: no archives for $TAG in $DIR (notes+pins are not a release)" >&2
 	exit 1
 fi
+
+CHECKSUM_FILES=("$NOTES" "$PIN_TXT" "$PIN_NDJSON")
+CHECKSUM_FILES+=("${ARCHIVES[@]}")
 
 printf '%s\n' "${CHECKSUM_FILES[@]}" | LC_ALL=C sort | xargs shasum -a 256 >SHA256SUMS
 printf '%s\n' "${CHECKSUM_FILES[@]}" | LC_ALL=C sort | xargs shasum -a 512 >SHA512SUMS
