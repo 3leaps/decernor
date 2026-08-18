@@ -13,13 +13,13 @@ relates-to:
 
 # PDR-0001 — Committed signing anchors and signed-payload inclusion
 
-**Status: Accepted.** Process for *where* Decernor writes release-signing
-identity and *how* that file becomes part of a signed GitHub release.
+**Status: Accepted.** Process for _where_ Decernor writes release-signing
+identity and _how_ that file becomes part of a signed GitHub release.
 
 This is a **PDR**, not an EPR or DDR:
 
-- **Not EPR.** "Never hand-type hex" is the durable rule, but *where the
-  file lives* and *which sibling files we keep* are revisable.
+- **Not EPR.** "Never hand-type hex" is the durable rule, but _where the
+  file lives_ and _which sibling files we keep_ are revisable.
 - **Not DDR.** Record shape is already [DDR-0001](ddr-0001-fingerprint-record-contract.md).
   This record is the ceremony and layout.
 - **Not ADR.** No new runtime component.
@@ -51,11 +51,11 @@ keys/
   expected-fingerprints.txt      # verifier contract (derived)
 ```
 
-| File | Role |
-|------|------|
+| File                           | Role                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `expected-fingerprints.ndjson` | Exact stdout of `decernor fingerprint` on the **exported public files** (`--format ndjson --path-mode none --class public`). GPG run uses `--kind gpg --gpg-role primary`. Minisign run uses `--kind minisign` and keeps the `minisign-public-blob-sha256-v1` record (not the key-id record). Schema-valid DDR-0001 records. |
-| `expected-fingerprints.txt` | Two lines, whitespace-separated: `gpg <40-hex>` and `minisign <64-hex>`. Values are **copied verbatim** from those records. This is what `verify-public-keys.sh` compares. |
-| `README.md` | Points at the inserter; does not restate hex. |
+| `expected-fingerprints.txt`    | Two lines, whitespace-separated: `gpg <40-hex>` and `minisign <64-hex>`. Values are **copied verbatim** from those records. This is what `verify-public-keys.sh` compares.                                                                                                                                                   |
+| `README.md`                    | Points at the inserter; does not restate hex.                                                                                                                                                                                                                                                                                |
 
 **Never committed:** private keys, keystore trees, minisign secret
 files, exported `.pub` / `.asc`, **or any filesystem path to those
