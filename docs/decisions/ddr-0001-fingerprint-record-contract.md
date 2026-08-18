@@ -80,13 +80,13 @@ material**.
 
 ## Encoding table
 
-| Token                 | Record filter                                            | `fingerprint` spelling                 |
-| --------------------- | -------------------------------------------------------- | -------------------------------------- |
-| GPG identity          | `kind=gpg`, `scheme=openpgp-fingerprint-v1`              | uppercase 40-hex                       |
-| GPG contract          | same + `key_role=primary`                                | uppercase 40-hex                       |
-| Minisign trust-anchor | `kind=minisign`, `scheme=minisign-public-blob-sha256-v1` | lowercase 64-hex (no `SHA256:` prefix) |
-| Minisign key id       | `scheme=minisign-key-id-v1`                              | 16 hex                                 |
-| SSH public blob       | `kind=ssh`, `scheme=ssh-rfc4253-public-blob-sha256-v1`   | `SHA256:` + unpadded base64            |
+| Token                 | Record filter                                            | `fingerprint` spelling                            |
+| --------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+| GPG identity          | `kind=gpg`, `scheme=openpgp-fingerprint-v1`              | uppercase 40-hex                                  |
+| GPG contract          | same + `key_role=primary`                                | uppercase 40-hex                                  |
+| Minisign trust-anchor | `kind=minisign`, `scheme=minisign-public-blob-sha256-v1` | lowercase 64-hex (no `SHA256:` prefix)            |
+| Minisign key id       | `scheme=minisign-key-id-v1`                              | 16 hex                                            |
+| SSH public blob       | `kind=ssh`, `scheme=ssh-rfc4253-public-blob-sha256-v1`   | `SHA256:` + exactly 43 unpadded base64 characters |
 
 JSON Schema enforces those successful tuples. Encoding validation is keyed on
 `fingerprint_scheme`, not `algorithm`.

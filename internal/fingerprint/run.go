@@ -312,7 +312,11 @@ func applyGPGRoleSelection(records *[]Record, role KeyRole) error {
 	}
 	selected := make([]Record, 0, len(*records))
 	for _, record := range *records {
-		if record.Kind == scanner.ArtifactKindGPG && record.KeyRole == role && record.Fingerprint != nil {
+		if record.Kind != scanner.ArtifactKindGPG {
+			selected = append(selected, record)
+			continue
+		}
+		if record.KeyRole == role && record.Fingerprint != nil {
 			selected = append(selected, record)
 		}
 	}

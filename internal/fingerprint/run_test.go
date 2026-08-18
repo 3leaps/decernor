@@ -631,6 +631,53 @@ func TestRunGPGRolePrimaryRefusesZeroOrManyPrimaries(t *testing.T) {
 	}
 }
 
+func TestRunGPGRolePrimaryPreservesNonGPGRecords(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	mustWrite(t, filepath.Join(dir, "id_ed25519.pub"), "ssh-ed25519 "+base64.StdEncoding.EncodeToString(testSSHPublicBlob())+"\n")
+	gpgPath := filepath.Join(dir, "release-key.asc")
+	mustWrite(t, gpgPath, syntheticPGPArmor())
+	mustWrite(t, gpgPath+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+	))
+
+	result, err := Run(context.Background(), []string{dir}, Config{GPGRole: KeyRolePrimary}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 2 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	var sawSSH, sawPrimary, sawSubkey bool
+	for _, record := range result.Records {
+		switch record.Kind {
+		case scanner.ArtifactKindSSH:
+			sawSSH = true
+		case scanner.ArtifactKindGPG:
+			if record.KeyRole == KeyRolePrimary {
+				sawPrimary = true
+			}
+			if record.KeyRole == KeyRoleSubkey {
+				sawSubkey = true
+			}
+		}
+	}
+	if !sawSSH || !sawPrimary || sawSubkey {
+		t.Fatalf("records=%#v", result.Records)
+	}
+
+	sshOnly, err := Run(context.Background(), []string{filepath.Join(dir, "id_ed25519.pub")}, Config{GPGRole: KeyRolePrimary}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sshOnly.Records) != 1 || sshOnly.Records[0].Kind != scanner.ArtifactKindSSH {
+		t.Fatalf("ssh-only=%#v", sshOnly.Records)
+	}
+}
+
 func TestRunGPGRolePrimaryAllowsTwoNamedFiles(t *testing.T) {
 	dir := t.TempDir()
 	installFakeGPG(t, dir)
