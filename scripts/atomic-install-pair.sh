@@ -32,6 +32,8 @@ cp "$SRC_NDJSON" "$NEW_NDJSON"
 cp "$SRC_TXT" "$NEW_TXT"
 
 rollback() {
+	# Single-shot: a signal runs this handler, then EXIT must not run it again.
+	trap - EXIT INT TERM HUP
 	rm -f "$NEW_NDJSON" "$NEW_TXT"
 	if [ "$had_ndjson" -eq 1 ]; then
 		mv -f "$BAK_NDJSON" "$DEST_NDJSON"
@@ -53,6 +55,8 @@ if ! mv -f "$NEW_NDJSON" "$DEST_NDJSON"; then
 fi
 if [ "${DECERNOR_TEST_KILL_AFTER_FIRST:-}" = 1 ]; then
 	kill -s TERM $$
+	# A handled TERM returns here; do not continue the second install.
+	exit 143
 fi
 if [ "${DECERNOR_TEST_FAIL_SECOND:-}" = 1 ]; then
 	echo "error: failed to install txt pin; restored previous pair" >&2

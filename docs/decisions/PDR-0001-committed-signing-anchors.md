@@ -127,6 +127,10 @@ decernor fingerprint "$PUB" --class public --kind minisign \
 #    validate: each ndjson line against fingerprint-record.v0.
 ```
 
+Pin-pair install uses **process-lifetime rollback** on error or
+INT/TERM/HUP (restore the prior pair, or remove a first-use dest). Two
+dest files are not power-loss atomic.
+
 Rekey = new export + same script. Do not immortalize today's hex in
 docs or commit messages.
 

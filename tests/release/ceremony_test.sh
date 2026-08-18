@@ -89,6 +89,28 @@ else
 fi
 rm -rf "$pair" "$empty"
 
+# existing pair + TERM after first install restores prior bytes once (no second mv).
+pair="$(mktemp -d)"
+prior="$(mktemp -d)"
+printf 'new-ndjson\n' >"$pair/expected-fingerprints.ndjson"
+printf 'new-txt\n' >"$pair/expected-fingerprints.txt"
+printf 'old-ndjson\n' >"$prior/expected-fingerprints.ndjson"
+printf 'old-txt\n' >"$prior/expected-fingerprints.txt"
+set +e
+err="$(DECERNOR_TEST_KILL_AFTER_FIRST=1 "$INSTALL" "$pair" "$prior" 2>&1)"
+set -e
+if ! grep -qx 'old-ndjson' "$prior/expected-fingerprints.ndjson" ||
+	! grep -qx 'old-txt' "$prior/expected-fingerprints.txt"; then
+	fail "existing-pair signal did not restore prior dest files"
+elif [ -e "$prior/expected-fingerprints.ndjson.new" ] || [ -e "$prior/expected-fingerprints.txt.new" ]; then
+	fail "existing-pair signal left .new residue"
+elif printf '%s\n' "$err" | grep -Eqi 'no such file|cannot stat'; then
+	fail "existing-pair signal ran rollback twice ($err)"
+else
+	pass "existing-pair signal restores prior dest once"
+fi
+rm -rf "$pair" "$prior"
+
 # extra TXT token: helper must emit the two-field error (not keys/ cmp).
 if [ -f "$ROOT/keys/expected-fingerprints.txt" ]; then
 	mut="$(mktemp -d)"
@@ -116,6 +138,24 @@ if [ -f "$ROOT/keys/expected-fingerprints.ndjson" ]; then
 		expect_err "$out" "exactly two records" "validate refuses extra NDJSON record"
 	fi
 	rm -rf "$mut"
+fi
+
+# schema path: committed pair must validate when a host binary exists.
+DECERNOR_BIN="${DECERNOR_BIN:-}"
+if [ -z "$DECERNOR_BIN" ] && [ -x "$ROOT/bin/decernor" ]; then
+	DECERNOR_BIN="$ROOT/bin/decernor"
+fi
+if [ -n "$DECERNOR_BIN" ] && [ -f "$ROOT/keys/expected-fingerprints.txt" ]; then
+	out="$(DECERNOR_BIN="$DECERNOR_BIN" "$VALIDATE" \
+		"$ROOT/keys/expected-fingerprints.txt" \
+		"$ROOT/keys/expected-fingerprints.ndjson" 2>&1)" && status=0 || status=$?
+	if [ "$status" -eq 0 ]; then
+		pass "validate accepts committed pin pair (schema path)"
+	else
+		fail "validate rejected committed pin pair ($out)"
+	fi
+else
+	note "SKIP: schema path (no host decernor binary)"
 fi
 
 if [ "$FAIL" -ne 0 ]; then
