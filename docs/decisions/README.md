@@ -1,8 +1,10 @@
 # Decernor Decision Records
 
-Architecture (ADR), design (DDR), and security (SDR) decision records for decernor.
+Types follow crucible ADR-0003 (`ADR` / `DDR` / `SecDR` / `PDR` / `EPR`).
+Older records keep their original filenames.
 
-| ID                                                  | Title                                          | Status   | Date       |
-| --------------------------------------------------- | ---------------------------------------------- | -------- | ---------- |
-| [ADR-0001](adr-0001-symlink-policy.md)              | Symlink Policy (named inputs + walk traversal) | Accepted | 2026-06-11 |
-| [DDR-0001](ddr-0001-fingerprint-record-contract.md) | Fingerprint Record Contract                    | Accepted | 2026-06-11 |
+| ID | Title | Status | Date |
+| -- | ----- | ------ | ---- |
+| [ADR-0001](adr-0001-symlink-policy.md) | Symlink policy | Accepted | 2026-06-11 |
+| [DDR-0001](ddr-0001-fingerprint-record-contract.md) | Fingerprint record contract | Accepted | 2026-06-11 |
+| [PDR-0001](PDR-0001-committed-signing-anchors.md) | Committed signing anchors + signed-payload inclusion | Proposed | 2026-08-18 |
