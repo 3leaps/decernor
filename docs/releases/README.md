@@ -1,5 +1,5 @@
 # Releases
 
-Archived Decernor release notes will live here after tagged releases.
+Per-cut notes for tagged releases. Landing page: [`RELEASE_NOTES.md`](../../RELEASE_NOTES.md).
 
-The old upstream baseline release notes were intentionally removed during the Decernor bootstrap so this directory starts with product-owned release history only.
+- [v0.1.2](v0.1.2.md) — first tagged snapshot (private)

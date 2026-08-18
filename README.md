@@ -122,6 +122,8 @@ go run ./cmd/decernor fingerprint /path/to/artifacts
 go run ./cmd/decernor fp /path/to/artifacts --kind ssh,minisign
 go run ./cmd/decernor fingerprint /path/to/artifacts --format json
 go run ./cmd/decernor fingerprint /path/to/artifacts --fail-on-empty
+go run ./cmd/decernor fingerprint ./release.gpg.asc --class public --kind gpg \
+  --format json --path-mode none --gpg-role primary
 ```
 
 The default format is newline-delimited JSON. `--format json` emits an array of
@@ -138,9 +140,11 @@ Records use `schema_version:"v0"` and the schema in
 
 For minisign public keys, `fingerprint` emits both the native
 `minisign-key-id-v1` identifier and the collision-resistant
-`minisign-public-blob-sha256-v1` fingerprint. Use the public-blob SHA-256
-scheme for committed trust anchors; the key ID remains useful for display and
-operator correlation.
+`minisign-public-blob-sha256-v1` fingerprint (lowercase 64-hex in the
+record). Use the public-blob SHA-256 field for committed trust anchors; the
+key ID remains useful for display and operator correlation. A GPG public
+export uses `--gpg-role primary` when the caller needs exactly one primary
+fingerprint.
 
 Future readiness checks should support two levels:
 
