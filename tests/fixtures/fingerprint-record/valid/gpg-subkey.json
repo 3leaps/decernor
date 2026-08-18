@@ -1,0 +1,11 @@
+{
+  "schema_version": "v0",
+  "kind": "gpg",
+  "class": "public",
+  "algorithm": "openpgp-fingerprint",
+  "fingerprint": "1111222233334444555566667777888899990000",
+  "fingerprint_scheme": "openpgp-fingerprint-v1",
+  "key_id": "7777888899990000",
+  "key_role": "subkey",
+  "confidence": "high"
+}

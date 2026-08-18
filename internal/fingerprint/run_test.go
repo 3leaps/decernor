@@ -112,6 +112,12 @@ func TestRunFingerprintsMinisignPublicKeyIDAndBlobSHA256(t *testing.T) {
 	if blobRecord.Algorithm != "sha256" || blobRecord.Fingerprint == nil || *blobRecord.Fingerprint != minisignPublicBlobSHA256(payload) {
 		t.Fatalf("blob fingerprint record=%#v", blobRecord)
 	}
+	if !isLowercaseHex64(*blobRecord.Fingerprint) {
+		t.Fatalf("blob fingerprint spelling = %q", *blobRecord.Fingerprint)
+	}
+	if blobRecord.KeyRole != "" {
+		t.Fatalf("minisign blob must not have key_role: %#v", blobRecord)
+	}
 }
 
 func TestRunFingerprintsMinisignPublicWithNonCanonicalUntrustedComment(t *testing.T) {
@@ -518,6 +524,257 @@ func TestRunHashPathModeIsDeterministic(t *testing.T) {
 	if a == "" || a != b || strings.Contains(a, "id_ed25519") {
 		t.Fatalf("a=%q b=%q", a, b)
 	}
+}
+
+func TestRunGPGPrimaryAndSubkeyRolesIgnoreHelperOrder(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	primaryFirst := filepath.Join(dir, "primary-first.asc")
+	subFirst := filepath.Join(dir, "sub-first.asc")
+	mustWrite(t, primaryFirst, syntheticPGPArmor())
+	mustWrite(t, primaryFirst+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+	))
+	mustWrite(t, subFirst, syntheticPGPArmor())
+	mustWrite(t, subFirst+".colon", colonLines(
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+	))
+
+	for _, path := range []string{primaryFirst, subFirst} {
+		result, err := Run(context.Background(), []string{path}, Config{
+			Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Records) != 2 {
+			t.Fatalf("path=%s records=%#v", path, result.Records)
+		}
+		byRole := map[KeyRole]Record{}
+		for _, record := range result.Records {
+			if record.Fingerprint == nil || record.KeyID != (*record.Fingerprint)[len(*record.Fingerprint)-16:] {
+				t.Fatalf("key_id/fingerprint mismatch: %#v", record)
+			}
+			byRole[record.KeyRole] = record
+		}
+		if byRole[KeyRolePrimary].Fingerprint == nil || *byRole[KeyRolePrimary].Fingerprint != testPrimaryFP {
+			t.Fatalf("primary=%#v", byRole[KeyRolePrimary])
+		}
+		if byRole[KeyRoleSubkey].Fingerprint == nil || *byRole[KeyRoleSubkey].Fingerprint != testSubkeyFP {
+			t.Fatalf("subkey=%#v", byRole[KeyRoleSubkey])
+		}
+	}
+}
+
+func TestRunGPGRolePrimarySelectsUniquePrimary(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	path := filepath.Join(dir, "release-key.asc")
+	mustWrite(t, path, syntheticPGPArmor())
+	mustWrite(t, path+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+	))
+
+	result, err := Run(context.Background(), []string{path}, Config{
+		Kinds:   map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+		GPGRole: KeyRolePrimary,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 1 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	record := result.Records[0]
+	if record.KeyRole != KeyRolePrimary || record.Fingerprint == nil || *record.Fingerprint != testPrimaryFP {
+		t.Fatalf("record=%#v", record)
+	}
+}
+
+func TestRunGPGRolePrimaryRefusesZeroOrManyPrimaries(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+
+	none := filepath.Join(dir, "sub-only.asc")
+	mustWrite(t, none, syntheticPGPArmor())
+	mustWrite(t, none+".colon", colonLines(
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+	))
+
+	many := filepath.Join(dir, "two-primary.asc")
+	mustWrite(t, many, syntheticPGPArmor())
+	mustWrite(t, many+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+		"pub:u:3072:1:"+testOtherID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testOtherFP+":",
+	))
+
+	for _, path := range []string{none, many} {
+		_, err := Run(context.Background(), []string{path}, Config{
+			Kinds:   map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+			GPGRole: KeyRolePrimary,
+		}, nil)
+		if !IsSelectionError(err) {
+			t.Fatalf("path=%s err=%v", path, err)
+		}
+	}
+}
+
+func TestRunGPGRolePrimaryPreservesNonGPGRecords(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	mustWrite(t, filepath.Join(dir, "id_ed25519.pub"), "ssh-ed25519 "+base64.StdEncoding.EncodeToString(testSSHPublicBlob())+"\n")
+	gpgPath := filepath.Join(dir, "release-key.asc")
+	mustWrite(t, gpgPath, syntheticPGPArmor())
+	mustWrite(t, gpgPath+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+		"sub:e:3072:1:"+testSubkeyID+":1000::::::s:",
+		"fpr:::::::::"+testSubkeyFP+":",
+	))
+
+	result, err := Run(context.Background(), []string{dir}, Config{GPGRole: KeyRolePrimary}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 2 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+	var sawSSH, sawPrimary, sawSubkey bool
+	for _, record := range result.Records {
+		switch record.Kind {
+		case scanner.ArtifactKindSSH:
+			sawSSH = true
+		case scanner.ArtifactKindGPG:
+			if record.KeyRole == KeyRolePrimary {
+				sawPrimary = true
+			}
+			if record.KeyRole == KeyRoleSubkey {
+				sawSubkey = true
+			}
+		}
+	}
+	if !sawSSH || !sawPrimary || sawSubkey {
+		t.Fatalf("records=%#v", result.Records)
+	}
+
+	sshOnly, err := Run(context.Background(), []string{filepath.Join(dir, "id_ed25519.pub")}, Config{GPGRole: KeyRolePrimary}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sshOnly.Records) != 1 || sshOnly.Records[0].Kind != scanner.ArtifactKindSSH {
+		t.Fatalf("ssh-only=%#v", sshOnly.Records)
+	}
+}
+
+func TestRunGPGRolePrimaryAllowsTwoNamedFiles(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	a := filepath.Join(dir, "a.asc")
+	b := filepath.Join(dir, "b.asc")
+	mustWrite(t, a, syntheticPGPArmor())
+	mustWrite(t, a+".colon", colonLines(
+		"pub:u:3072:1:"+testPrimaryID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+	))
+	mustWrite(t, b, syntheticPGPArmor())
+	mustWrite(t, b+".colon", colonLines(
+		"pub:u:3072:1:"+testOtherID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testOtherFP+":",
+	))
+
+	result, err := Run(context.Background(), []string{a, b}, Config{
+		Kinds:   map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+		GPGRole: KeyRolePrimary,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Records) != 2 {
+		t.Fatalf("records=%#v", result.Records)
+	}
+}
+
+func TestRunGPGMalformedColonIsParseUnsupported(t *testing.T) {
+	dir := t.TempDir()
+	installFakeGPG(t, dir)
+	path := filepath.Join(dir, "mismatch.asc")
+	mustWrite(t, path, syntheticPGPArmor())
+	mustWrite(t, path+".colon", colonLines(
+		"pub:u:3072:1:"+testOtherID+":1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+	))
+
+	malformed := filepath.Join(dir, "malformed-id.asc")
+	mustWrite(t, malformed, syntheticPGPArmor())
+	mustWrite(t, malformed+".colon", colonLines(
+		"pub:u:3072:1:NOT-A-LONG-ID:1000:::escaESCA:::::",
+		"fpr:::::::::"+testPrimaryFP+":",
+	))
+
+	for _, input := range []string{path, malformed} {
+		result, err := Run(context.Background(), []string{input}, Config{
+			Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Records) != 1 {
+			t.Fatalf("input=%s records=%#v", input, result.Records)
+		}
+		if result.Records[0].Fingerprint != nil || result.Records[0].KeyRole != "" {
+			t.Fatalf("input=%s record=%#v", input, result.Records[0])
+		}
+		if result.Records[0].Reason != scanner.ArtifactReasonParseUnsupported {
+			t.Fatalf("input=%s reason=%q", input, result.Records[0].Reason)
+		}
+	}
+}
+
+func installFakeGPG(t *testing.T, dir string) {
+	t.Helper()
+	script := `#!/bin/sh
+file=
+for a in "$@"; do file=$a; done
+if [ -f "$file.colon" ]; then
+  /bin/cat "$file.colon"
+  exit 0
+fi
+exit 2
+`
+	helper := filepath.Join(dir, "gpg")
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func syntheticPGPArmor() string {
+	return "-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic\n-----END PGP PUBLIC KEY BLOCK-----\n"
+}
+
+func isLowercaseHex64(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if r >= '0' && r <= '9' || r >= 'a' && r <= 'f' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func testSSHPublicBlob() []byte {

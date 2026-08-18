@@ -1,0 +1,10 @@
+{
+  "schema_version": "v0",
+  "kind": "minisign",
+  "class": "public",
+  "algorithm": "minisign-key-id",
+  "fingerprint": "0123456789ABCDEF",
+  "fingerprint_scheme": "minisign-key-id-v1",
+  "key_id": "0123456789ABCDEF",
+  "confidence": "high"
+}

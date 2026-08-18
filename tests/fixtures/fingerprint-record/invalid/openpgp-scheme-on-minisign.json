@@ -1,0 +1,9 @@
+{
+  "schema_version": "v0",
+  "kind": "minisign",
+  "class": "public",
+  "algorithm": "sha256",
+  "fingerprint": "AAAABBBBCCCCDDDDEEEEFFFF0000111122223333",
+  "fingerprint_scheme": "openpgp-fingerprint-v1",
+  "confidence": "high"
+}

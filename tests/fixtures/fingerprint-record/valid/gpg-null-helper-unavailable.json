@@ -1,0 +1,10 @@
+{
+  "schema_version": "v0",
+  "kind": "gpg",
+  "class": "public",
+  "algorithm": "openpgp-fingerprint",
+  "fingerprint": null,
+  "fingerprint_scheme": "openpgp-fingerprint-v1",
+  "confidence": "low",
+  "reason": "helper-unavailable"
+}

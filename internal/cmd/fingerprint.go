@@ -27,6 +27,7 @@ type fingerprintOptions struct {
 	maxFileSize int64
 	gpgTimeout  time.Duration
 	pathMode    string
+	gpgRole     string
 }
 
 type fingerprintFileConfig struct {
@@ -85,7 +86,13 @@ Examples:
 			}
 			result, err := fingerprint.Run(ctx, args, cfg, cmd.ErrOrStderr())
 			if err != nil {
+				if fingerprint.IsSelectionError(err) {
+					return withExitCode(3, err)
+				}
 				return withExitCode(2, err)
+			}
+			if opts.failOnEmpty && result.Empty {
+				return withExitCode(3, fmt.Errorf("fingerprint found no matching key material"))
 			}
 			switch opts.format {
 			case "json":
@@ -95,9 +102,6 @@ Examples:
 			}
 			if err != nil {
 				return withExitCode(2, err)
-			}
-			if opts.failOnEmpty && result.Empty {
-				return withExitCode(3, fmt.Errorf("fingerprint found no matching key material"))
 			}
 			return nil
 		},
@@ -111,6 +115,7 @@ Examples:
 	cmd.Flags().Int64Var(&opts.maxFileSize, "max-file-size", opts.maxFileSize, "maximum regular file size to inspect in bytes")
 	cmd.Flags().DurationVar(&opts.gpgTimeout, "gpg-timeout", opts.gpgTimeout, "timeout for each OpenPGP helper inspection")
 	cmd.Flags().StringVar(&opts.pathMode, "path-mode", opts.pathMode, "path disclosure mode: relative, hash, or none")
+	cmd.Flags().StringVar(&opts.gpgRole, "gpg-role", opts.gpgRole, "select GPG identities: unset (all) or primary")
 	return cmd
 }
 
@@ -190,6 +195,9 @@ func (o fingerprintOptions) validate() error {
 	if !validPathMode(fingerprint.PathMode(o.pathMode)) {
 		return fmt.Errorf("unsupported --path-mode %q", o.pathMode)
 	}
+	if _, err := parseGPGRole(o.gpgRole); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -202,6 +210,10 @@ func (o fingerprintOptions) runnerConfig() (fingerprint.Config, error) {
 	if err != nil {
 		return fingerprint.Config{}, err
 	}
+	role, err := parseGPGRole(o.gpgRole)
+	if err != nil {
+		return fingerprint.Config{}, err
+	}
 	cfg := fingerprint.Config{
 		MaxFileSize: o.maxFileSize,
 		Include:     o.includes,
@@ -210,6 +222,7 @@ func (o fingerprintOptions) runnerConfig() (fingerprint.Config, error) {
 		Classes:     classes,
 		PathMode:    fingerprint.PathMode(o.pathMode),
 		FailOnEmpty: o.failOnEmpty,
+		GPGRole:     role,
 		GPGTimeout:  o.gpgTimeout,
 		EnableGPG:   true,
 		EnableSSH:   true,
@@ -229,6 +242,17 @@ func validPathMode(mode fingerprint.PathMode) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func parseGPGRole(raw string) (fingerprint.KeyRole, error) {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "", "all":
+		return "", nil
+	case string(fingerprint.KeyRolePrimary):
+		return fingerprint.KeyRolePrimary, nil
+	default:
+		return "", fmt.Errorf("unsupported --gpg-role %q", raw)
 	}
 }
 
