@@ -1,7 +1,7 @@
 ---
 id: PDR-0001
 title: Committed signing anchors and signed-payload inclusion
-status: Proposed
+status: Accepted
 date: 2026-08-18
 deciders:
   - cxotech
@@ -13,7 +13,7 @@ relates-to:
 
 # PDR-0001 — Committed signing anchors and signed-payload inclusion
 
-**Status: Proposed.** Process for *where* Decernor writes release-signing
+**Status: Accepted.** Process for *where* Decernor writes release-signing
 identity and *how* that file becomes part of a signed GitHub release.
 
 This is a **PDR**, not an EPR or DDR:

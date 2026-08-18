@@ -1,30 +1,21 @@
 # Release Notes
 
-Landing page for the latest Decernor cut. Per-cut payload for GitHub:
-[`docs/releases/v0.1.2.md`](docs/releases/v0.1.2.md).
+Landing page for the latest Decernor cut. Per-cut payload:
+[`docs/releases/v0.1.3.md`](docs/releases/v0.1.3.md).
+
+## v0.1.3 — 2026-08-18
+
+First **signed** private release. Pins in `keys/expected-fingerprints.txt`
+are produced by `decernor fingerprint` (not hand-typed) and copied into
+`dist/release/` **before** checksums, then signed with the rest of the
+payload.
+
+Signing uses `DECERNOR_*` environment variables only. No key paths live
+in this repository.
+
+Still private. Draft GitHub release until a maintainer undrafts.
 
 ## v0.1.2 — 2026-08-18
 
-First tagged snapshot. **Private** repository. Draft GitHub release;
-unsigned unless org public keys are inserted from `decernor fingerprint`.
-
-**Shipped verbs:** `scan`, `guardread`, `fingerprint`/`fp`, `validate`
-(contract-base + classification gate), `readiness validate-config`,
-`version`, `envinfo`, `doctor`.
-
-**Fingerprint contract:** successful GPG records carry `key_role` and
-`key_id`. `--gpg-role primary` is the unique-primary selector (exit 3, no
-stdout, if that named file has 0 or more than one primary). Minisign
-trust-anchor field is lowercase 64-hex `minisign-public-blob-sha256-v1`.
-
-**Not in this cut:** static readiness evaluation, proof checks,
-`derive-public-key`, `migrate`, embedded ceremony docs, public GitHub
-visibility.
-
-### Verify
-
-```sh
-make check-all
-make build
-decernor version   # 0.1.2
-```
+First tagged snapshot (unsigned draft). See
+[`docs/releases/v0.1.2.md`](docs/releases/v0.1.2.md).
