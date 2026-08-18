@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Validate pin-pair shape and DDR-0001 schema. No pub recompute, no keys/ cmp.
+# Shape checks run first so they do not depend on a built decernor binary.
 # Usage: validate-pin-pair.sh <txt> <ndjson> [schema]
 set -euo pipefail
 
@@ -16,27 +17,6 @@ if [ ! -f "$SCHEMA" ]; then
 	echo "error: schema not found: $SCHEMA" >&2
 	exit 2
 fi
-
-DECERNOR_BIN="${DECERNOR_BIN:-}"
-if [ -z "$DECERNOR_BIN" ]; then
-	if [ -x "$ROOT/bin/decernor" ]; then
-		DECERNOR_BIN="$ROOT/bin/decernor"
-	elif command -v decernor >/dev/null 2>&1; then
-		DECERNOR_BIN="$(command -v decernor)"
-	else
-		echo "error: decernor binary not found" >&2
-		exit 2
-	fi
-fi
-
-ONE_JSON="$(mktemp)"
-cleanup_one() { rm -f "$ONE_JSON"; }
-trap cleanup_one EXIT
-while IFS= read -r line || [ -n "$line" ]; do
-	[ -n "$line" ] || continue
-	printf '%s\n' "$line" >"$ONE_JSON"
-	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$ONE_JSON" >/dev/null
-done <"$NDJSON"
 
 python3 - "$TXT" "$NDJSON" <<'PY'
 import json
@@ -76,3 +56,24 @@ if gpg_rec[0].get("fingerprint") != want["gpg"]:
 if mini_rec[0].get("fingerprint") != want["minisign"]:
     raise SystemExit("error: pin NDJSON minisign fingerprint != pin TXT")
 PY
+
+DECERNOR_BIN="${DECERNOR_BIN:-}"
+if [ -z "$DECERNOR_BIN" ]; then
+	if [ -x "$ROOT/bin/decernor" ]; then
+		DECERNOR_BIN="$ROOT/bin/decernor"
+	elif command -v decernor >/dev/null 2>&1; then
+		DECERNOR_BIN="$(command -v decernor)"
+	else
+		echo "error: decernor binary not found" >&2
+		exit 2
+	fi
+fi
+
+ONE_JSON="$(mktemp)"
+cleanup_one() { rm -f "$ONE_JSON"; }
+trap cleanup_one EXIT
+while IFS= read -r line || [ -n "$line" ]; do
+	[ -n "$line" ] || continue
+	printf '%s\n' "$line" >"$ONE_JSON"
+	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$ONE_JSON" >/dev/null
+done <"$NDJSON"
