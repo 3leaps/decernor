@@ -45,6 +45,47 @@ else
 	note "SKIP: keys/ pins not in tree"
 fi
 
+# P1: first-use second-install failure must not leave a half pair.
+pair="$(mktemp -d)"
+empty="$(mktemp -d)"
+printf '{}\n{}\n' >"$pair/expected-fingerprints.ndjson"
+printf 'gpg A\nminisign B\n' >"$pair/expected-fingerprints.txt"
+if DECERNOR_TEST_FAIL_SECOND=1 "$ROOT/scripts/atomic-install-pair.sh" "$pair" "$empty" >/dev/null 2>&1; then
+	fail "first-use second-install failure returned success"
+else
+	if [ -e "$empty/expected-fingerprints.ndjson" ] || [ -e "$empty/expected-fingerprints.txt" ]; then
+		fail "first-use rollback left a half pair"
+	else
+		pass "first-use second-install failure leaves no dest files"
+	fi
+fi
+rm -rf "$pair" "$empty"
+
+# P2: extra TXT token / extra NDJSON record.
+if [ -f "$ROOT/keys/expected-fingerprints.txt" ]; then
+	stage="$(mktemp -d)"
+	cp "$ROOT/keys/expected-fingerprints.txt" "$stage/expected-fingerprints.txt"
+	cp "$ROOT/keys/expected-fingerprints.ndjson" "$stage/expected-fingerprints.ndjson"
+	printf 'not-a-key\n' >"$stage/decernor-minisign.pub"
+	printf 'not-a-key\n' >"$stage/decernor-release-signing-key.asc"
+	# extra field: still two lines but third token
+	awk '{print $0, "extra"}' "$ROOT/keys/expected-fingerprints.txt" >"$stage/expected-fingerprints.txt"
+	if "$VERIFY" "$stage" >/dev/null 2>&1; then
+		fail "verify accepted extra TXT token"
+	else
+		pass "verify refuses extra TXT token"
+	fi
+	cp "$ROOT/keys/expected-fingerprints.txt" "$stage/expected-fingerprints.txt"
+	# extra NDJSON record
+	cat "$ROOT/keys/expected-fingerprints.ndjson" "$ROOT/keys/expected-fingerprints.ndjson" >"$stage/expected-fingerprints.ndjson"
+	if "$VERIFY" "$stage" >/dev/null 2>&1; then
+		fail "verify accepted extra NDJSON record"
+	else
+		pass "verify refuses extra NDJSON record"
+	fi
+	rm -rf "$stage"
+fi
+
 if [ "$FAIL" -ne 0 ]; then
 	note "$FAIL ceremony probe(s) failed"
 	exit 1

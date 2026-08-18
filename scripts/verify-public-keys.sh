@@ -52,12 +52,14 @@ if [ -z "$DECERNOR_BIN" ]; then
 	fi
 fi
 
+ONE_JSON="$(mktemp)"
+cleanup_one() { rm -f "$ONE_JSON"; }
+trap cleanup_one EXIT
 while IFS= read -r line; do
 	[ -n "$line" ] || continue
-	printf '%s\n' "$line" >"$DIR/.pin-one.json"
-	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$DIR/.pin-one.json" >/dev/null
+	printf '%s\n' "$line" >"$ONE_JSON"
+	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$ONE_JSON" >/dev/null
 done <"$STAGED_NDJSON"
-rm -f "$DIR/.pin-one.json"
 
 GPG_JSON="$("$DECERNOR_BIN" fingerprint "$ASC" --class public --kind gpg --format json --path-mode none --gpg-role primary)"
 MINI_JSON="$("$DECERNOR_BIN" fingerprint "$PUB" --class public --kind minisign --format json --path-mode none)"
@@ -68,15 +70,15 @@ import pathlib
 import sys
 
 txt_path, ndjson_path, gpg_raw, mini_raw = sys.argv[1:5]
-lines = [ln.strip() for ln in pathlib.Path(txt_path).read_text().splitlines() if ln.strip() and not ln.startswith("#")]
-if len(lines) != 2:
-    raise SystemExit("error: staged TXT must have exactly two non-comment lines")
+physical = pathlib.Path(txt_path).read_text().splitlines()
+if len(physical) != 2:
+    raise SystemExit("error: staged TXT must be exactly two physical lines")
 want = {}
-for line in lines:
+for line in physical:
     parts = line.split()
-    if len(parts) < 2:
-        raise SystemExit("error: staged TXT line is malformed")
-    algo, fp = parts[0], parts[1]
+    if len(parts) != 2:
+        raise SystemExit("error: staged TXT line must have exactly two fields")
+    algo, fp = parts
     if algo in want:
         raise SystemExit(f"error: duplicate {algo} line in staged TXT")
     want[algo] = fp
@@ -87,6 +89,8 @@ records = []
 for line in pathlib.Path(ndjson_path).read_text().splitlines():
     if line.strip():
         records.append(json.loads(line))
+if len(records) != 2:
+    raise SystemExit("error: staged NDJSON must contain exactly two records")
 gpg_rec = [r for r in records if r.get("fingerprint_scheme") == "openpgp-fingerprint-v1"]
 mini_rec = [r for r in records if r.get("fingerprint_scheme") == "minisign-public-blob-sha256-v1"]
 if len(gpg_rec) != 1 or gpg_rec[0].get("key_role") != "primary":

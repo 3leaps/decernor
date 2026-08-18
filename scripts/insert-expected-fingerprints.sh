@@ -112,45 +112,6 @@ while IFS= read -r line; do
 	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$WORKDIR/one.json" >/dev/null
 done <"$STAGING/expected-fingerprints.ndjson"
 
-KEYS="$ROOT/keys"
-mkdir -p "$KEYS"
-NEW_NDJSON="$KEYS/expected-fingerprints.ndjson.new"
-NEW_TXT="$KEYS/expected-fingerprints.txt.new"
-DEST_NDJSON="$KEYS/expected-fingerprints.ndjson"
-DEST_TXT="$KEYS/expected-fingerprints.txt"
-BAK_NDJSON="$KEYS/expected-fingerprints.ndjson.bak"
-BAK_TXT="$KEYS/expected-fingerprints.txt.bak"
-
-cp "$STAGING/expected-fingerprints.ndjson" "$NEW_NDJSON"
-cp "$STAGING/expected-fingerprints.txt" "$NEW_TXT"
-
-rollback() {
-	rm -f "$NEW_NDJSON" "$NEW_TXT"
-	if [ -f "$BAK_NDJSON" ]; then
-		mv -f "$BAK_NDJSON" "$DEST_NDJSON"
-	fi
-	if [ -f "$BAK_TXT" ]; then
-		mv -f "$BAK_TXT" "$DEST_TXT"
-	fi
-}
-
-if [ -f "$DEST_NDJSON" ]; then
-	cp "$DEST_NDJSON" "$BAK_NDJSON"
-fi
-if [ -f "$DEST_TXT" ]; then
-	cp "$DEST_TXT" "$BAK_TXT"
-fi
-
-if ! mv -f "$NEW_NDJSON" "$DEST_NDJSON"; then
-	rollback
-	echo "error: failed to install ndjson pin" >&2
-	exit 1
-fi
-if ! mv -f "$NEW_TXT" "$DEST_TXT"; then
-	rollback
-	echo "error: failed to install txt pin; restored previous pair" >&2
-	exit 1
-fi
-rm -f "$BAK_NDJSON" "$BAK_TXT"
-echo "[ok] wrote $DEST_NDJSON"
-echo "[ok] wrote $DEST_TXT"
+"$ROOT/scripts/atomic-install-pair.sh" "$STAGING" "$ROOT/keys"
+echo "[ok] wrote $ROOT/keys/expected-fingerprints.ndjson"
+echo "[ok] wrote $ROOT/keys/expected-fingerprints.txt"
