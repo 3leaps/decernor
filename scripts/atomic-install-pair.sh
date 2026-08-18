@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Atomically replace dest/expected-fingerprints.{ndjson,txt} from a staging pair.
-# First-use: if the second install fails, remove any newly installed dest.
+# Replace dest/expected-fingerprints.{ndjson,txt} from a staging pair.
+# Install-window rollback on error or INT/TERM/HUP: restore prior dest files
+# or remove newly installed dest when none existed. Two dest files are not
+# power-loss atomic; a crash mid-pair can still leave residue.
 # Usage: atomic-install-pair.sh <staging-dir> <dest-dir>
 set -euo pipefail
 
@@ -43,19 +45,23 @@ rollback() {
 	fi
 }
 
+trap rollback EXIT INT TERM HUP
+
 if ! mv -f "$NEW_NDJSON" "$DEST_NDJSON"; then
-	rollback
 	echo "error: failed to install ndjson pin" >&2
 	exit 1
 fi
+if [ "${DECERNOR_TEST_KILL_AFTER_FIRST:-}" = 1 ]; then
+	kill -s TERM $$
+fi
 if [ "${DECERNOR_TEST_FAIL_SECOND:-}" = 1 ]; then
-	rollback
 	echo "error: failed to install txt pin; restored previous pair" >&2
 	exit 1
 fi
 if ! mv -f "$NEW_TXT" "$DEST_TXT"; then
-	rollback
 	echo "error: failed to install txt pin; restored previous pair" >&2
 	exit 1
 fi
+
+trap - EXIT INT TERM HUP
 rm -f "$BAK_NDJSON" "$BAK_TXT"

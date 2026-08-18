@@ -40,6 +40,8 @@ if grep -Eqi "PRIVATE|SECRET|BEGIN PGP PRIVATE KEY|minisign secret key" "$PUB" "
 	exit 1
 fi
 
+"$ROOT/scripts/validate-pin-pair.sh" "$STAGED_TXT" "$STAGED_NDJSON" "$SCHEMA"
+
 DECERNOR_BIN="${DECERNOR_BIN:-}"
 if [ -z "$DECERNOR_BIN" ]; then
 	if [ -x "$ROOT/bin/decernor" ]; then
@@ -52,55 +54,19 @@ if [ -z "$DECERNOR_BIN" ]; then
 	fi
 fi
 
-ONE_JSON="$(mktemp)"
-cleanup_one() { rm -f "$ONE_JSON"; }
-trap cleanup_one EXIT
-while IFS= read -r line; do
-	[ -n "$line" ] || continue
-	printf '%s\n' "$line" >"$ONE_JSON"
-	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$ONE_JSON" >/dev/null
-done <"$STAGED_NDJSON"
-
 GPG_JSON="$("$DECERNOR_BIN" fingerprint "$ASC" --class public --kind gpg --format json --path-mode none --gpg-role primary)"
 MINI_JSON="$("$DECERNOR_BIN" fingerprint "$PUB" --class public --kind minisign --format json --path-mode none)"
 
-python3 - "$STAGED_TXT" "$STAGED_NDJSON" "$GPG_JSON" "$MINI_JSON" <<'PY'
+python3 - "$STAGED_TXT" "$GPG_JSON" "$MINI_JSON" <<'PY'
 import json
 import pathlib
 import sys
 
-txt_path, ndjson_path, gpg_raw, mini_raw = sys.argv[1:5]
-physical = pathlib.Path(txt_path).read_text().splitlines()
-if len(physical) != 2:
-    raise SystemExit("error: staged TXT must be exactly two physical lines")
+txt_path, gpg_raw, mini_raw = sys.argv[1:4]
 want = {}
-for line in physical:
-    parts = line.split()
-    if len(parts) != 2:
-        raise SystemExit("error: staged TXT line must have exactly two fields")
-    algo, fp = parts
-    if algo in want:
-        raise SystemExit(f"error: duplicate {algo} line in staged TXT")
+for line in pathlib.Path(txt_path).read_text().splitlines():
+    algo, fp = line.split()
     want[algo] = fp
-if set(want) != {"gpg", "minisign"}:
-    raise SystemExit("error: staged TXT must contain exactly one gpg and one minisign line")
-
-records = []
-for line in pathlib.Path(ndjson_path).read_text().splitlines():
-    if line.strip():
-        records.append(json.loads(line))
-if len(records) != 2:
-    raise SystemExit("error: staged NDJSON must contain exactly two records")
-gpg_rec = [r for r in records if r.get("fingerprint_scheme") == "openpgp-fingerprint-v1"]
-mini_rec = [r for r in records if r.get("fingerprint_scheme") == "minisign-public-blob-sha256-v1"]
-if len(gpg_rec) != 1 or gpg_rec[0].get("key_role") != "primary":
-    raise SystemExit("error: staged NDJSON must contain one GPG primary record")
-if len(mini_rec) != 1:
-    raise SystemExit("error: staged NDJSON must contain one minisign blob-SHA record")
-if gpg_rec[0].get("fingerprint") != want["gpg"]:
-    raise SystemExit("error: staged NDJSON GPG fingerprint != staged TXT")
-if mini_rec[0].get("fingerprint") != want["minisign"]:
-    raise SystemExit("error: staged NDJSON minisign fingerprint != staged TXT")
 
 gpg = json.loads(gpg_raw)
 if len(gpg) != 1 or gpg[0].get("key_role") != "primary":

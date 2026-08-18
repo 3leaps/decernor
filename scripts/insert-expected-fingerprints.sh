@@ -105,12 +105,9 @@ out_dir.mkdir(parents=True, exist_ok=True)
 (out_dir / "expected-fingerprints.txt").write_text(f"gpg {gpg_fp}\nminisign {mini_fp}\n")
 PY
 
-SCHEMA="$ROOT/schemas/fingerprint-record.v0.schema.json"
-while IFS= read -r line; do
-	[ -n "$line" ] || continue
-	printf '%s\n' "$line" >"$WORKDIR/one.json"
-	"$DECERNOR_BIN" validate --schema "$SCHEMA" --data "$WORKDIR/one.json" >/dev/null
-done <"$STAGING/expected-fingerprints.ndjson"
+"$ROOT/scripts/validate-pin-pair.sh" \
+	"$STAGING/expected-fingerprints.txt" \
+	"$STAGING/expected-fingerprints.ndjson"
 
 "$ROOT/scripts/atomic-install-pair.sh" "$STAGING" "$ROOT/keys"
 echo "[ok] wrote $ROOT/keys/expected-fingerprints.ndjson"
