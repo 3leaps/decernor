@@ -6,27 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed
+## [0.1.2] - 2026-08-18
 
-- Fingerprint records now emit `key_role` and a derived GPG long `key_id` on
-  successful OpenPGP identities, and spell minisign public-blob SHA-256 as
-  lowercase hex. `decernor fingerprint --gpg-role primary` selects the unique
-  primary on each named GPG identity file and refuses 0 or >1 primaries with no
-  stdout artifact.
+First tagged snapshot of the Decernor CLI. Private repository; unsigned draft
+release is the intended publish shape for this cut.
 
 ### Added
 
-- Initial Decernor CLI application bootstrapped from the Fulmen microtool baseline.
-- `scan PATH` command for local GPG, minisign, SSH, private-key, revocation, and keyring-internal artifact classification.
-- `readiness validate-config PATH` command for schema-shaped readiness configuration validation.
-- Structured finding model with severity, retention, exposure, sensitivity, priority, confidence, evidence, and recommendation fields.
-- Embedded Fulmen app identity for standalone binary operation outside the repository.
-- Initial readiness examples and JSON schema.
+- Initial Decernor CLI bootstrapped from the Fulmen microtool baseline.
+- `scan PATH` — classify local GPG, minisign, SSH, private-key, revocation,
+  and keyring-internal artifacts (`--fail-on`, `--detectors`, `--profile`).
+- `guardread PATH` — copy one regular file to stdout only after guarded
+  key-material checks pass.
+- `fingerprint` / `fp` — schema-backed public-identity fingerprints (NDJSON
+  or JSON). Isolated GnuPG helper home; no ambient keyrings.
+- `validate` — JSON Schema validation with explicit `--contract-base` /
+  `--contract` resolution and optional `--classification-gate`.
+- `readiness validate-config PATH` — schema-shaped readiness **config**
+  validation (no static or proof evaluation in this cut).
+- `version`, `envinfo`, `doctor`.
+- Embedded Fulmen app identity for standalone binaries.
 
 ### Changed
 
-- Renamed the prototype to `decernor` across module, binary, app identity, environment prefix, and documentation surfaces.
+- Prototype renamed to `decernor` across module, binary, identity, and docs.
+- Successful OpenPGP fingerprint records emit `key_role` (`primary`|`subkey`)
+  and a derived uppercase long `key_id`. `--gpg-role primary` selects the
+  unique primary on each named GPG identity file and refuses 0 or >1
+  primaries with empty stdout (exit 3).
+- `minisign-public-blob-sha256-v1` fingerprints are lowercase 64-hex in the
+  record (no `SHA256:` prefix). Native key-id remains a separate record.
+- Minisign public keys are detected from the canonical public blob, not the
+  untrusted comment line.
+- GPG revocation certificates map to `unsupported-kind` without invoking the
+  helper as if it were missing.
 
 ### Removed
 
-- Historical release notes and changelog entries inherited from the upstream baseline.
+- Upstream baseline changelog and release-note history inherited from the
+  template.
+
+[0.1.2]: https://github.com/3leaps/decernor/releases/tag/v0.1.2

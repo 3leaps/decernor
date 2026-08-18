@@ -1,6 +1,6 @@
 .PHONY: all help bootstrap bootstrap-force hooks-ensure tools sync dependencies verify-dependencies version version-set version-bump-major version-bump-minor version-bump-patch
 .PHONY: lint test build install build-all package package-sign verify-release-key clean fmt fmt-check check-all precommit prepush pr-final license-audit
-.PHONY: release-check release-prepare release-build doctor validate-app-identity
+.PHONY: release-check release-prepare release-build release-preflight release-notes-check doctor validate-app-identity
 .PHONY: sync-embedded-identity verify-embedded-identity test-standalone-binary cdrl-verify
 
 # Binary and version information
@@ -187,15 +187,31 @@ version-bump-patch:  ## Bump patch version
 	@$(GONEAT_BIN) version bump patch
 	@echo "✅ Version bumped to $$(cat VERSION)"
 
-release-check:  ## Run release checklist validation
-	@echo "Running release checklist..."
-	@$(MAKE) check-all
-	@echo "✅ Release check passed"
+release-notes-check:  ## Verify VERSION, identity yaml, and notes files for this cut
+	@set -euo pipefail; \
+	V=$$(tr -d ' \n' < VERSION); \
+	YAML_V=$$(sed -n 's/^  version: "\(.*\)"/\1/p' $(EMBEDDED_IDENTITY_SRC) | head -1); \
+	if [ -z "$$V" ]; then echo "❌ VERSION is empty"; exit 1; fi; \
+	if [ "$$YAML_V" != "$$V" ]; then \
+		echo "❌ $(EMBEDDED_IDENTITY_SRC) app.version ($$YAML_V) != VERSION ($$V)"; exit 1; \
+	fi; \
+	if ! grep -q "^## \[$$V\]" CHANGELOG.md; then \
+		echo "❌ CHANGELOG.md missing ## [$$V] heading"; exit 1; \
+	fi; \
+	if [ ! -f "docs/releases/v$$V.md" ]; then \
+		echo "❌ missing docs/releases/v$$V.md"; exit 1; \
+	fi; \
+	if ! grep -q "^## v$$V" RELEASE_NOTES.md; then \
+		echo "❌ RELEASE_NOTES.md missing ## v$$V heading"; exit 1; \
+	fi; \
+	echo "✅ Release notes check passed ($$V)"
 
-release-prepare:  ## Prepare for release (tests, checks)
-	@echo "Preparing release..."
-	@$(MAKE) check-all
-	@echo "✅ Release preparation complete"
+release-preflight: release-notes-check verify-embedded-identity fmt-check lint test  ## Non-mutating tag gate
+	@echo "✅ Release preflight passed"
+
+release-check: release-preflight  ## Alias for release-preflight
+
+release-prepare: release-preflight  ## Alias for release-preflight
 
 release-build: build-all  ## Build release artifacts (binaries + checksums)
 	@echo "✅ Release build complete"
