@@ -1,6 +1,10 @@
 .PHONY: all help bootstrap bootstrap-force hooks-ensure tools sync dependencies verify-dependencies version version-set version-bump-major version-bump-minor version-bump-patch
 .PHONY: lint test build install build-all package package-sign verify-release-key clean fmt fmt-check check-all precommit prepush pr-final license-audit
 .PHONY: release-check release-prepare release-build release-preflight release-notes-check doctor validate-app-identity
+.PHONY: release-clean release-download release-notes release-stage-anchors release-insert-anchors
+.PHONY: release-checksums release-sign release-export-keys release-verify-checksums
+.PHONY: release-verify-signatures release-verify-keys release-verify release-upload release
+.PHONY: release-guard-tag-version
 .PHONY: sync-embedded-identity verify-embedded-identity test-standalone-binary cdrl-verify
 
 # Binary and version information
@@ -10,6 +14,13 @@ ifeq ($(OS),Windows_NT)
 	BINARY_EXT := .exe
 endif
 VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
+DECERNOR_RELEASE_TAG ?= v$(VERSION)
+export DECERNOR_RELEASE_TAG
+DECERNOR_MINISIGN_KEY ?=
+DECERNOR_MINISIGN_PUB ?=
+DECERNOR_PGP_KEY_ID ?=
+DECERNOR_GPG_HOMEDIR ?=
+DIST_RELEASE := dist/release
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)
@@ -207,11 +218,79 @@ release-notes-check:  ## Verify VERSION, identity yaml, and notes files for this
 	echo "✅ Release notes check passed ($$V)"
 
 release-preflight: release-notes-check verify-embedded-identity fmt-check lint test  ## Non-mutating tag gate
+	@if [ ! -f keys/expected-fingerprints.txt ] || [ ! -f keys/expected-fingerprints.ndjson ]; then \
+		echo "❌ missing keys/expected-fingerprints.{txt,ndjson} — run make release-insert-anchors"; exit 1; \
+	fi
 	@echo "✅ Release preflight passed"
 
 release-check: release-preflight  ## Alias for release-preflight
 
 release-prepare: release-preflight  ## Alias for release-preflight
+
+release-guard-tag-version: ## Verify DECERNOR_RELEASE_TAG matches VERSION
+	@./scripts/release-guard-tag-version.sh
+
+release-clean: ## Remove dist/release
+	rm -rf $(DIST_RELEASE)
+	@echo "[ok] $(DIST_RELEASE) cleaned"
+
+release-download: ## Download unsigned archives from GitHub
+	@if [ -z "$(DECERNOR_RELEASE_TAG)" ] || [ "$(DECERNOR_RELEASE_TAG)" = "v" ]; then \
+		echo "error: set DECERNOR_RELEASE_TAG=vX.Y.Z" >&2; exit 2; \
+	fi
+	@./scripts/download-release-assets.sh $(DECERNOR_RELEASE_TAG) $(DIST_RELEASE)
+
+release-notes: ## Copy docs/releases/vX.Y.Z.md into dist before checksums
+	@src="docs/releases/$(DECERNOR_RELEASE_TAG).md"; \
+	if [ ! -f "$$src" ]; then echo "❌ missing $$src" >&2; exit 1; fi; \
+	mkdir -p "$(DIST_RELEASE)"; \
+	cp "$$src" "$(DIST_RELEASE)/release-notes-$(DECERNOR_RELEASE_TAG).md"; \
+	echo "[ok] copied $$src into the checksum set"
+
+release-insert-anchors: ## Generate keys/ pins from DECERNOR_* env + decernor fingerprint
+	@./scripts/insert-expected-fingerprints.sh
+
+release-stage-anchors: ## Copy committed pins into dist before checksums (net-new)
+	@./scripts/stage-release-anchors.sh $(DIST_RELEASE)
+
+release-checksums: ## Generate SHA256SUMS and SHA512SUMS (archives + notes + pins)
+	@./scripts/generate-checksums.sh $(DIST_RELEASE) $(DECERNOR_RELEASE_TAG)
+
+release-sign: ## Sign checksum manifests (requires DECERNOR_MINISIGN_KEY)
+	@if [ -z "$(DECERNOR_MINISIGN_KEY)" ]; then \
+		echo "error: DECERNOR_MINISIGN_KEY is not set" >&2; exit 2; \
+	fi
+	@./scripts/sign-release-assets.sh $(DECERNOR_RELEASE_TAG) $(DIST_RELEASE)
+
+release-export-keys: ## Export public signing keys (DECERNOR_MINISIGN_PUB + GPG env)
+	@./scripts/export-release-keys.sh $(DIST_RELEASE)
+
+release-verify-checksums: ## Verify SHA256SUMS against staged files
+	@cd $(DIST_RELEASE) && shasum -a 256 -c SHA256SUMS
+
+release-verify-signatures: ## Verify minisign/PGP signatures
+	@./scripts/verify-signatures.sh $(DIST_RELEASE)
+
+release-verify-keys: ## Public-only + pin match via decernor
+	@./scripts/verify-public-keys.sh $(DIST_RELEASE)
+
+release-verify: release-verify-checksums release-verify-signatures release-verify-keys
+	@echo "[ok] All release verifications passed"
+
+release-upload: release-verify ## Upload signed provenance (draft unchanged)
+	@./scripts/upload-release-assets.sh $(DECERNOR_RELEASE_TAG) $(DIST_RELEASE)
+
+# Serialized walk. Leaves stay independent. Stage anchors before checksums.
+release: release-guard-tag-version ## Full signing workflow (after CI draft)
+	$(MAKE) release-clean
+	$(MAKE) release-download
+	$(MAKE) release-notes
+	$(MAKE) release-stage-anchors
+	$(MAKE) release-checksums
+	$(MAKE) release-sign
+	$(MAKE) release-export-keys
+	$(MAKE) release-upload
+	@echo "[ok] Release $(DECERNOR_RELEASE_TAG) complete"
 
 release-build: build-all  ## Build release artifacts (binaries + checksums)
 	@echo "✅ Release build complete"
@@ -267,6 +346,7 @@ verify-release-key:  ## Verify exported public key contains no private material 
 test: verify-embedded-identity  ## Run all tests
 	@echo "Running test suite..."
 	$(GOTEST) ./... -v -cover
+	@bash tests/release/ceremony_test.sh
 
 lint:  ## Run lint checks with goneat
 	@if [ -z "$(GONEAT_BIN)" ]; then echo "❌ goneat not found. Run 'make bootstrap' first."; exit 1; fi
