@@ -222,6 +222,19 @@ Users should be able to:
 
 This matters because the assets being scanned by this tool are often the same class of assets used to sign its releases.
 
+## Verify a signed release
+
+Consume fingerprints, not secrets. Per-cut steps live in
+[`docs/releases/v0.1.3.md`](docs/releases/v0.1.3.md). Committed pins and
+the inserter are documented in [`keys/README.md`](keys/README.md). How
+those pins enter the signed set is
+[`docs/decisions/PDR-0001-committed-signing-anchors.md`](docs/decisions/PDR-0001-committed-signing-anchors.md).
+
+Download the draft (archives, signed SUMS, exported publics, staged pin
+pair). Verify SUMS signatures, then run `decernor fingerprint` on the
+exported publics and compare to `expected-fingerprints.txt`. Never
+hand-type hex into notes or a README.
+
 ## Build
 
 ```sh

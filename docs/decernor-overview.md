@@ -10,23 +10,27 @@ Decernor is a CLI tool for inspecting local signing and authentication material 
 
 ## Scope
 
-Decernor answers two questions:
+Decernor answers a few questions:
 
 - `scan`: what risky or sensitive key material is present in this path?
+- `guardread`: can this one file be written to stdout without first exposing supported key-material bytes?
+- `fingerprint`: what safe public identity fingerprints can be emitted for this key material?
 - `readiness`: does an asset set appear to have enough protected material for a capability?
 
 It is intentionally CLI-only. It should not become a daemon, web service, remote scanner, or key store without an explicit architecture review.
 
 ## Current Commands
 
-| Command                          | Purpose                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| `scan PATH`                      | Inspect a directory and report local key-material findings.               |
-| `readiness validate-config PATH` | Validate readiness configuration JSON.                                    |
-| `version`                        | Print build version, with optional extended dependency details.           |
-| `envinfo`                        | Print runtime, config, and app identity details.                          |
-| `doctor`                         | Run local installation diagnostics.                                       |
-| `validate`                       | Validate schema/data files; retained while readiness schema work matures. |
+| Command                          | Purpose                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `scan PATH`                      | Inspect a directory and report local key-material findings.                  |
+| `guardread FILE`                 | Copy one regular file to stdout only after guarded key-material checks pass. |
+| `fingerprint PATH`               | Emit public identity fingerprints (alias: `fp`).                             |
+| `readiness validate-config PATH` | Validate readiness configuration JSON.                                       |
+| `version`                        | Print build version, with optional extended dependency details.              |
+| `envinfo`                        | Print runtime, config, and app identity details.                             |
+| `doctor`                         | Run local installation diagnostics.                                          |
+| `validate`                       | Validate schema/data files; retained while readiness schema work matures.    |
 
 ## Scanner Model
 

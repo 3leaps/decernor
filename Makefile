@@ -346,6 +346,7 @@ verify-release-key:  ## Verify exported public key contains no private material 
 test: verify-embedded-identity  ## Run all tests
 	@echo "Running test suite..."
 	$(GOTEST) ./... -v -cover
+	@$(MAKE) build
 	@bash tests/release/ceremony_test.sh
 
 lint:  ## Run lint checks with goneat
