@@ -21,16 +21,16 @@ It is intentionally CLI-only. It should not become a daemon, web service, remote
 
 ## Current Commands
 
-| Command                          | Purpose                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| `scan PATH`                      | Inspect a directory and report local key-material findings.               |
-| `guardread FILE`                 | Write one file to stdout only if it is not supported key material.        |
-| `fingerprint PATH`               | Emit public identity fingerprints (alias: `fp`).                          |
-| `readiness validate-config PATH` | Validate readiness configuration JSON.                                    |
-| `version`                        | Print build version, with optional extended dependency details.           |
-| `envinfo`                        | Print runtime, config, and app identity details.                          |
-| `doctor`                         | Run local installation diagnostics.                                       |
-| `validate`                       | Validate schema/data files; retained while readiness schema work matures. |
+| Command                          | Purpose                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `scan PATH`                      | Inspect a directory and report local key-material findings.                  |
+| `guardread FILE`                 | Copy one regular file to stdout only after guarded key-material checks pass. |
+| `fingerprint PATH`               | Emit public identity fingerprints (alias: `fp`).                             |
+| `readiness validate-config PATH` | Validate readiness configuration JSON.                                       |
+| `version`                        | Print build version, with optional extended dependency details.              |
+| `envinfo`                        | Print runtime, config, and app identity details.                             |
+| `doctor`                         | Run local installation diagnostics.                                          |
+| `validate`                       | Validate schema/data files; retained while readiness schema work matures.    |
 
 ## Scanner Model
 
