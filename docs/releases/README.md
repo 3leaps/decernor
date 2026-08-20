@@ -2,5 +2,6 @@
 
 Per-cut notes for tagged releases. Landing page: [`RELEASE_NOTES.md`](../../RELEASE_NOTES.md).
 
-- [v0.1.3](v0.1.3.md) — first signed private cut
+- [v0.1.4](v0.1.4.md) — signed cut; toolchain and provenance notes
+- [v0.1.3](v0.1.3.md) — first signed cut
 - [v0.1.2](v0.1.2.md) — first tagged snapshot (unsigned)

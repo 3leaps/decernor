@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-20
+
+Signed cut. Same two-phase provenance walk as v0.1.3. Toolchain and
+landing-page notes catch up; no new CLI verbs.
+
 ### Changed
 
 - README provenance story describes the signed two-phase cut and the
@@ -68,5 +73,6 @@ release is the intended publish shape for this cut.
 - Upstream baseline changelog and release-note history inherited from the
   template.
 
+[0.1.4]: https://github.com/3leaps/decernor/releases/tag/v0.1.4
 [0.1.3]: https://github.com/3leaps/decernor/releases/tag/v0.1.3
 [0.1.2]: https://github.com/3leaps/decernor/releases/tag/v0.1.2
