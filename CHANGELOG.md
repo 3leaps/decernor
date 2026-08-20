@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - README provenance story describes the signed two-phase cut and the
   fingerprint-pin reviewer path.
+- CI and Release use `goneat-tools-runner-glibc:v0.5.2` (goneat `v0.5.16`).
+  Local `make` bootstrap pin matches.
+- Direct `spf13/pflag` patch `v1.0.9` → `v1.0.10`.
 
 ## [0.1.3] - 2026-08-18
 

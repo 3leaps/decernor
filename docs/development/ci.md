@@ -1,6 +1,7 @@
 # CI
 
-Decernor uses GitHub Actions with the Fulmen goneat toolbox runner image.
+Decernor uses GitHub Actions with the Fulmen goneat toolbox runner image
+(`ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.2`, goneat `v0.5.16`).
 
 The CI workflow currently verifies:
 

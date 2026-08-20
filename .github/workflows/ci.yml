@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # glibc runner is the default; a `-musl` variant exists for Alpine.
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.4.2
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.2
       # actions/checkout@v4 needs write access to
       # /__w/_temp/_runner_file_commands/.
       options: --user root
