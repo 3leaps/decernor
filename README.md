@@ -237,7 +237,7 @@ Inserter: [`keys/README.md`](keys/README.md).
 ## Verify a signed release
 
 Consume fingerprints, not secrets. Per-cut commands live in
-[`docs/releases/v0.1.3.md`](docs/releases/v0.1.3.md).
+[`docs/releases/v0.1.4.md`](docs/releases/v0.1.4.md).
 
 Download the release assets (archives, signed SUMS, exported publics,
 staged pin pair). Verify SUMS signatures, then:
