@@ -69,7 +69,7 @@ EMBEDDED_IDENTITY_DST := internal/assets/appidentity/app.yaml
 # Bump cadence: keep within a couple of minor releases of upstream goneat so
 # local installs (via sfetch) track the toolbox runner image. CI/release do not
 # use this — they get goneat from the goneat-tools-runner image.
-GONEAT_VERSION ?= v0.5.12
+GONEAT_VERSION ?= v0.5.16
 SFETCH_BIN := $(shell command -v sfetch 2>/dev/null)
 GONEAT_BIN = $(firstword $(wildcard $(BINDIR)/goneat$(BINARY_EXT)) $(shell command -v goneat 2>/dev/null))
 
