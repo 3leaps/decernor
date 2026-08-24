@@ -9,7 +9,8 @@ Public-landing pack on the same signed two-phase walk as v0.1.4. No new
 CLI verbs. README gains a `## License` pointer; overview status is
 `active`; community stubs link to `3leaps/oss-policies`; LICENSE drops the
 Fulmen "Acceptable Use" template section. Historical v0.1.2 notes use past
-tense for the private-era snapshot.
+tense for the private-era snapshot. The standalone binary gate uses a
+`mktemp` directory under `TMPDIR` instead of hardcoded `/tmp`.
 
 Signing still uses `DECERNOR_*` environment variables only. No key paths
 live in this repository.

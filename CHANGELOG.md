@@ -22,6 +22,9 @@ No new CLI verbs.
 - LICENSE drops the Fulmen "Acceptable Use" template section; MIT grant and
   trademark notice remain.
 - Historical `[0.1.2]` notes use past tense for the private-era snapshot.
+- `make test-standalone-binary` copies the built binary into a `mktemp`
+  directory under `$${TMPDIR:-/var/tmp}` instead of hardcoded `/tmp`
+  (avoids host SIGKILL on `/tmp` executables).
 
 ## [0.1.4] - 2026-08-20
 
