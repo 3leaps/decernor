@@ -9,11 +9,8 @@ SSH keys, revocation certificates, public counterparts, and checksum manifests â
 retain, or inspect. It reads the _state_, never the _secret_.
 
 > **Name note:** `decernor` (from Latin _decernere_, "to decide / determine / decree";
-> root _cernere_, "to sift, distinguish, discern") is the locked name for the tool
-> previously proven in an internal prototype. Pronounced **deh-SUR-nor**.
-> See [`NAMING.md`](NAMING.md) for the decision record. The binary, module path, and
-> config surfaces below use the final name; mechanical rename of the prototype is a
-> graduation task.
+> root _cernere_, "to sift, distinguish, discern"). Pronounced **deh-SUR-nor**.
+> See [`NAMING.md`](NAMING.md) for the decision record.
 
 ## Product Thesis
 
@@ -103,7 +100,7 @@ Capabilities use a provider plus verb model:
 - `minisign/sign`
 - `ssh/auth`
 
-The current prototype includes schema-backed config validation:
+The current cut includes schema-backed config validation:
 
 ```sh
 go run ./cmd/decernor readiness validate-config examples/github-org-bootstrap.readiness.json
@@ -237,7 +234,7 @@ Inserter: [`keys/README.md`](keys/README.md).
 ## Verify a signed release
 
 Consume fingerprints, not secrets. Per-cut commands live in
-[`docs/releases/v0.1.4.md`](docs/releases/v0.1.4.md).
+[`docs/releases/v0.1.5.md`](docs/releases/v0.1.5.md).
 
 Download the release assets (archives, signed SUMS, exported publics,
 staged pin pair). Verify SUMS signatures, then:
@@ -315,3 +312,7 @@ The repository avoids committed real keys and avoids full static secret-key fixt
 ## Provenance
 
 Decernor was initially built from the public Fulmen microtool forge baseline [`forge-microtool-gimlet`](https://github.com/fulmenhq/forge-microtool-gimlet), then adapted as a 3 Leaps OSS tool.
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
