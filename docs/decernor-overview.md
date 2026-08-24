@@ -1,7 +1,7 @@
 ---
 title: "Decernor Overview"
 description: "Local key-material hygiene and readiness checks"
-status: "draft"
+status: "active"
 ---
 
 # Decernor Overview
