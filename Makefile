@@ -312,13 +312,15 @@ install: build  ## Install binary to BINDIR (default: ~/.local/bin)
 
 test-standalone-binary: build  ## Verify built binary runs outside repo
 	@echo "→ Standalone binary check (outside repo)..."
-	@set -euo pipefail; \
-	tmp=$$(mktemp -d "$${TMPDIR:-/var/tmp}/decernor-standalone.XXXXXX"); \
-	trap 'rm -rf "$$tmp"' EXIT; \
-	cp "bin/$(BINARY_NAME)$(BINARY_EXT)" "$$tmp/$(BINARY_NAME)$(BINARY_EXT)"; \
-	"$$tmp/$(BINARY_NAME)$(BINARY_EXT)" version >/dev/null; \
-	"$$tmp/$(BINARY_NAME)$(BINARY_EXT)" --help >/dev/null; \
-	echo "✅ Standalone binary check passed"
+	@# POSIX /bin/sh (dash on Ubuntu CI): no pipefail. Keep outside-repo check
+	@# under $${TMPDIR:-/var/tmp} — hardcoded /tmp is SIGKILL'd on some macOS hosts.
+	@tmp=$$(mktemp -d "$${TMPDIR:-/var/tmp}/decernor-standalone.XXXXXX") && \
+	cp "bin/$(BINARY_NAME)$(BINARY_EXT)" "$$tmp/$(BINARY_NAME)$(BINARY_EXT)" && \
+	"$$tmp/$(BINARY_NAME)$(BINARY_EXT)" version >/dev/null && \
+	"$$tmp/$(BINARY_NAME)$(BINARY_EXT)" --help >/dev/null && \
+	rm -rf "$$tmp" && \
+	echo "✅ Standalone binary check passed" || \
+	(rm -rf "$$tmp"; exit 1)
 
 build-all: verify-embedded-identity  ## Build multi-platform binaries and generate checksums
 	@echo "→ Building for multiple platforms..."
