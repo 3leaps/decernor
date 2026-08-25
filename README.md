@@ -258,6 +258,22 @@ make build
 ./bin/decernor version
 ```
 
+## Install
+
+Install Decernor from the 3 Leaps package repositories:
+
+```sh
+brew install 3leaps/tap/decernor
+```
+
+```powershell
+scoop bucket add 3leaps https://github.com/3leaps/scoop-bucket
+scoop install decernor
+```
+
+Package managers are a convenience distribution path. For release provenance,
+continue to verify the signed GitHub release assets and fingerprint pins.
+
 ## Readiness Configs
 
 Readiness configs describe what capabilities an asset set must support.

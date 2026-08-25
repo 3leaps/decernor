@@ -1,7 +1,14 @@
 # Release Notes
 
 Landing page for the latest Decernor cut. Per-cut payload:
-[`docs/releases/v0.1.5.md`](docs/releases/v0.1.5.md).
+[`docs/releases/v0.1.6.md`](docs/releases/v0.1.6.md).
+
+## v0.1.6 — 2026-08-25
+
+Package-manager distribution release. Decernor is available from the official
+Homebrew tap and Scoop bucket. The package-manager handoff verifies published
+archive metadata and checksums, then updates clean sibling worktrees without
+committing or pushing them. No CLI verbs changed.
 
 ## v0.1.5 — 2026-08-24
 

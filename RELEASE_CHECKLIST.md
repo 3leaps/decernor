@@ -47,7 +47,20 @@ up the pin files unless this runs first.
 
 The GitHub release stays **draft**. Undraft is a separate maintainer step.
 
-## 4. Rekey
+## 4. Package managers
+
+After the signed release is verified and undrafted:
+
+- [ ] Confirm the GitHub release is published and anonymously downloadable.
+- [ ] Run `make verify-package-manager-handoff DECERNOR_RELEASE_TAG=vX.Y.Z`.
+- [ ] Run `make update-package-managers DECERNOR_RELEASE_TAG=vX.Y.Z`.
+- [ ] Review and validate the Homebrew tap and Scoop bucket diffs.
+- [ ] Open and merge their normal PRs; do not commit or push them from this repository.
+- [ ] Smoke `brew install 3leaps/tap/decernor` on supported macOS/Linux hosts.
+- [ ] Smoke `scoop install decernor` on Windows.
+- [ ] Confirm each installed `decernor version` reports `X.Y.Z`.
+
+## 5. Rekey
 
 New export + `make release-insert-anchors` + new cut. Do not edit hex
 by hand.

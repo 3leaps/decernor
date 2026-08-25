@@ -6,6 +6,7 @@
 .PHONY: release-verify-signatures release-verify-keys release-verify release-upload release
 .PHONY: release-guard-tag-version
 .PHONY: sync-embedded-identity verify-embedded-identity test-standalone-binary cdrl-verify
+.PHONY: update-homebrew-formula update-scoop-manifest update-package-managers verify-package-manager-handoff
 
 # Binary and version information
 BINARY_NAME := decernor
@@ -21,6 +22,9 @@ DECERNOR_MINISIGN_PUB ?=
 DECERNOR_PGP_KEY_ID ?=
 DECERNOR_GPG_HOMEDIR ?=
 DIST_RELEASE := dist/release
+HOMEBREW_TAP_DIR ?= ../homebrew-tap
+SCOOP_BUCKET_DIR ?= ../scoop-bucket
+PACKAGE_MANAGER_VERSION := $(patsubst v%,%,$(DECERNOR_RELEASE_TAG))
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)
@@ -292,6 +296,19 @@ release: release-guard-tag-version ## Full signing workflow (after CI draft)
 	$(MAKE) release-upload
 	@echo "[ok] Release $(DECERNOR_RELEASE_TAG) complete"
 
+verify-package-manager-handoff: ## Verify a published release and sibling package worktrees
+	@./scripts/verify-package-manager-handoff.sh "$(DECERNOR_RELEASE_TAG)" "$(HOMEBREW_TAP_DIR)" "$(SCOOP_BUCKET_DIR)"
+
+update-homebrew-formula: verify-package-manager-handoff ## Update the sibling Homebrew formula without committing it
+	@$(MAKE) -C "$(HOMEBREW_TAP_DIR)" update-decernor TAG="$(DECERNOR_RELEASE_TAG)"
+
+update-scoop-manifest: verify-package-manager-handoff ## Update the sibling Scoop manifest without committing it
+	@$(MAKE) -C "$(SCOOP_BUCKET_DIR)" update-decernor VERSION="$(PACKAGE_MANAGER_VERSION)"
+
+update-package-managers: verify-package-manager-handoff ## Update both sibling package worktrees serially
+	@$(MAKE) -C "$(HOMEBREW_TAP_DIR)" update-decernor TAG="$(DECERNOR_RELEASE_TAG)"
+	@$(MAKE) -C "$(SCOOP_BUCKET_DIR)" update-decernor VERSION="$(PACKAGE_MANAGER_VERSION)"
+
 release-build: build-all  ## Build release artifacts (binaries + checksums)
 	@echo "✅ Release build complete"
 
@@ -353,6 +370,7 @@ test: verify-embedded-identity  ## Run all tests
 	$(GOTEST) ./... -v -cover
 	@$(MAKE) build
 	@bash tests/release/ceremony_test.sh
+	@bash tests/package-manager-handoff_test.sh
 
 lint:  ## Run lint checks with goneat
 	@if [ -z "$(GONEAT_BIN)" ]; then echo "❌ goneat not found. Run 'make bootstrap' first."; exit 1; fi

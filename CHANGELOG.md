@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-08-25
+
+Package-manager distribution release. No new CLI verbs.
+
+### Added
+
+- Homebrew and Scoop handoff targets that verify published archive metadata and
+  checksums before updating clean sibling worktrees.
+- README installation instructions for the official Homebrew tap and Scoop
+  bucket.
+
+### Changed
+
+- The release checklist publishes package-manager updates only after the signed
+  GitHub release is verified and undrafted.
+
 ## [0.1.5] - 2026-08-24
 
 Public-landing pack. Signed cut on the same two-phase provenance walk.
@@ -94,6 +110,7 @@ shape for that cut.
 - Upstream baseline changelog and release-note history inherited from the
   template.
 
+[0.1.6]: https://github.com/3leaps/decernor/releases/tag/v0.1.6
 [0.1.5]: https://github.com/3leaps/decernor/releases/tag/v0.1.5
 [0.1.4]: https://github.com/3leaps/decernor/releases/tag/v0.1.4
 [0.1.3]: https://github.com/3leaps/decernor/releases/tag/v0.1.3
