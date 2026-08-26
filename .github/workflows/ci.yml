@@ -1,6 +1,7 @@
 # yamllint disable rule:document-start
 # yamllint disable rule:truthy
 name: CI
+# Pull-request verification runs this workflow unchanged from the release tip.
 on:
   push:
     branches: [main]
