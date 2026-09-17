@@ -79,7 +79,7 @@ tools:
       darwin: ["mise"]
       windows: ["mise", "scoop", "winget"]
     install_commands:
-      mise: "mise use -g ripgrep@latest"
+      mise: "mise use -g ripgrep@15.1.0"
       apt-get: "sudo apt-get update && sudo apt-get install -y ripgrep"
       scoop: "scoop install ripgrep"
       winget: "winget install BurntSushi.ripgrep.MSVC"
@@ -97,7 +97,7 @@ tools:
       darwin: ["mise"]
       windows: ["mise", "scoop", "winget"]
     install_commands:
-      mise: "mise use -g jq@latest"
+      mise: "mise use -g jq@1.8.2"
       apt-get: "sudo apt-get update && sudo apt-get install -y jq"
       scoop: "scoop install jq"
       winget: "winget install jqlang.jq"
@@ -105,7 +105,7 @@ tools:
     name: "yamlfmt"
     description: "YAML formatter for configuration files"
     kind: "go"
-    install_package: "github.com/google/yamlfmt/cmd/yamlfmt@latest"
+    install_package: "github.com/google/yamlfmt/cmd/yamlfmt@v0.21.0"
     detect_command: "yamlfmt --version"
     version_scheme: "semver"
     minimum_version: "0.10.0"
@@ -125,8 +125,8 @@ tools:
       darwin: ["mise", "bun"]
       windows: ["mise", "bun"]
     install_commands:
-      mise: "mise use -g prettier@latest"
-      bun: "bun add -g prettier"
+      mise: "mise use -g prettier@3.9.6"
+      bun: "bun add -g prettier@3.9.6"
     # TODO: Re-check cooling policy when updating to goneat v0.3.7
     # Currently disabled because prettier is not in a tracked directory
     cooling:
@@ -135,48 +135,48 @@ tools:
     name: "gosec"
     description: "Go security linter that identifies security issues in Go code"
     kind: "go"
-    install_package: "github.com/securego/gosec/v2/cmd/gosec@latest"
+    install_package: "github.com/securego/gosec/v2/cmd/gosec@v2.29.0"
     detect_command: "gosec --version"
     platforms: ["linux", "darwin", "windows"]
   govulncheck:
     name: "govulncheck"
     description: "Go vulnerability database checker for Go dependencies"
     kind: "go"
-    install_package: "golang.org/x/vuln/cmd/govulncheck@latest"
+    install_package: "golang.org/x/vuln/cmd/govulncheck@v1.8.0"
     detect_command: "govulncheck --version"
     platforms: ["linux", "darwin", "windows"]
   gitleaks:
     name: "gitleaks"
     description: "Secret scanning tool to prevent committing sensitive information"
     kind: "go"
-    install_package: "github.com/gitleaks/gitleaks/v8@latest"
+    install_package: "github.com/zricethezav/gitleaks/v8@v8.30.1"
     detect_command: "gitleaks version"
     platforms: ["linux", "darwin", "windows"]
   goimports:
     name: "goimports"
     description: "Go import formatter and organizer"
     kind: "go"
-    install_package: "golang.org/x/tools/cmd/goimports@latest"
+    install_package: "golang.org/x/tools/cmd/goimports@v0.37.0"
     detect_command: "goimports --help"
     platforms: ["linux", "darwin", "windows"]
   shfmt:
     name: "shfmt"
     description: "Shell formatter used by goneat lint"
     kind: "go"
-    install_package: "mvdan.cc/sh/v3/cmd/shfmt@latest"
+    install_package: "mvdan.cc/sh/v3/cmd/shfmt@v3.13.1"
     detect_command: "shfmt --version"
     platforms: ["linux", "darwin", "windows"]
   checkmake:
     name: "checkmake"
     description: "Makefile linter used by goneat lint"
     kind: "go"
-    install_package: "github.com/mrtazz/checkmake@latest"
+    install_package: "github.com/checkmake/checkmake/cmd/checkmake@v0.3.2"
     detect_command: "checkmake --help"
     platforms: ["linux", "darwin", "windows"]
   actionlint:
     name: "actionlint"
     description: "GitHub Actions workflow linter used by goneat lint"
     kind: "go"
-    install_package: "github.com/rhysd/actionlint/cmd/actionlint@latest"
+    install_package: "github.com/rhysd/actionlint/cmd/actionlint@v1.7.12"
     detect_command: "actionlint -version"
     platforms: ["linux", "darwin", "windows"]

@@ -1,14 +1,15 @@
 # yamllint disable rule:document-start
 # yamllint disable rule:truthy
+# yamllint disable rule:line-length
 name: CI
 # Pull-request verification runs this workflow unchanged from the release tip.
 on:
   push:
     branches: [main]
   pull_request:
-# The goneat-tools-runner image is the toolchain: Go, goneat, golangci-lint,
-# and foundation formatters are bundled and version-matched. Do not install Go
-# or other tools in the job, because doing so can shadow the bundled binaries.
+# The goneat-tools-runner image owns Go, goneat, golangci-lint, and foundation
+# formatters. Security scanners are installed later at exact versions because
+# they are not bundled; they must not shadow image-owned build tools.
 defaults:
   run:
     # Container run: steps use the image's /bin/sh, which is `dash` here.
@@ -19,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # glibc runner is the default; a `-musl` variant exists for Alpine.
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.2
-      # actions/checkout@v4 needs write access to
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.6@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
+      # actions/checkout needs write access to
       # /__w/_temp/_runner_file_commands/.
       options: --user root
     env:
@@ -28,7 +29,7 @@ jobs:
       FULMEN_WORKSPACE_ROOT: ${{ github.workspace }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -51,16 +52,17 @@ jobs:
           golangci-lint version
           prettier --version
           yamlfmt --version
-          # The go.mod directive must match the image's bundled Go; assert the
-          # image is the expected major.minor so version skew fails loudly.
-          go version | grep -q 'go1\.26' || {
-            echo "::error::Need Go 1.26.x from runner image; got $(go version)"
+          # The go.mod directive and image use the same exact Go patch.
+          go version | grep -q 'go1\.26\.6 ' || {
+            echo "::error::Need Go 1.26.6 from runner image; got $(go version)"
             exit 1
           }
       - name: Verify embedded identity mirror
         run: make verify-embedded-identity
       - name: Download modules
         run: go mod download
+      - name: Security and license gates (pinned, fail closed)
+        run: make security-gates
       - name: Format check (non-mutating)
         run: make fmt-check
       - name: Lint

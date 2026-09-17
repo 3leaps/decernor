@@ -42,20 +42,8 @@ func FindProjectRootFrom(startPath string) (string, error) {
 	if isCI {
 		boundaryKeys := []string{"FULMEN_WORKSPACE_ROOT", "GITHUB_WORKSPACE", "CI_PROJECT_DIR", "WORKSPACE", "PROJECT_ROOT"}
 		for _, key := range boundaryKeys {
-			boundary := strings.TrimSpace(os.Getenv(key))
-			if boundary == "" {
-				continue
-			}
-			boundary = filepath.Clean(boundary)
-			if !filepath.IsAbs(boundary) {
-				continue
-			}
-			st, err := os.Stat(boundary)
-			if err != nil || !st.IsDir() {
-				continue
-			}
-			// Only accept a boundary that contains the start path.
-			if rel, err := filepath.Rel(boundary, cleanStart); err != nil || strings.HasPrefix(rel, "..") {
+			boundary, ok := validCIBoundary(cleanStart, os.Getenv(key))
+			if !ok {
 				continue
 			}
 
@@ -75,4 +63,28 @@ func FindProjectRootFrom(startPath string) (string, error) {
 	}
 
 	return rootPath, nil
+}
+
+// validCIBoundary accepts an environment-provided boundary only when it is an
+// absolute, existing directory that lexically contains the already-clean start
+// path. It is a search boundary, never a file-content input.
+func validCIBoundary(cleanStart, candidate string) (string, bool) {
+	boundary := filepath.Clean(strings.TrimSpace(candidate))
+	if candidate == "" || !filepath.IsAbs(boundary) {
+		return "", false
+	}
+
+	// #nosec G703 -- the CI-supplied value is used only for directory metadata
+	// after absolute-path validation; containment is checked below. The invariant
+	// is maintained by TestValidCIBoundary.
+	st, err := os.Stat(boundary)
+	if err != nil || !st.IsDir() {
+		return "", false
+	}
+
+	rel, err := filepath.Rel(boundary, cleanStart)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return boundary, true
 }

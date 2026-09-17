@@ -419,7 +419,9 @@ func openSSHPrivatePublicBlob(data []byte) ([]byte, bool, bool) {
 
 func readSSHString(reader *bytes.Reader) ([]byte, bool) {
 	n, ok := readUint32(reader)
-	if !ok || n > uint32(reader.Len()) {
+	// bytes.Reader.Len is non-negative. Compare in a wider type before allocating
+	// so an attacker-controlled SSH length cannot wrap or trigger a large make.
+	if !ok || uint64(n) > uint64(reader.Len()) {
 		return nil, false
 	}
 	out := make([]byte, n)

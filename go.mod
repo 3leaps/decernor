@@ -1,6 +1,6 @@
 module github.com/3leaps/decernor
 
-go 1.26.2
+go 1.26.6
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/fulmenhq/crucible v0.4.18 // indirect
+	github.com/fulmenhq/crucible v0.4.19 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
