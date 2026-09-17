@@ -84,6 +84,19 @@ func TestRunEncryptedOpenSSHPrivateReturnsNullReason(t *testing.T) {
 	}
 }
 
+func TestReadSSHStringRejectsHugeLengthWithShortBody(t *testing.T) {
+	data := appendUint32(nil, 0xffffffff)
+	data = append(data, 0x01)
+	reader := bytes.NewReader(data)
+
+	if value, ok := readSSHString(reader); ok || value != nil {
+		t.Fatalf("readSSHString accepted oversized length: ok=%v value=%x", ok, value)
+	}
+	if reader.Len() != 1 {
+		t.Fatalf("short body was consumed after length rejection: remaining=%d", reader.Len())
+	}
+}
+
 func TestRunFingerprintsMinisignPublicKeyIDAndBlobSHA256(t *testing.T) {
 	dir := t.TempDir()
 	payload := append([]byte("Ed"), []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}...)

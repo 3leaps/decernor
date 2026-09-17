@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "scope": {
+    "module_graph": "go list -m -json all",
+    "goneat_runtime": "go list -deps -json ./..."
+  },
+  "allowed_licenses": [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "Unlicense"
+  ],
+  "modules": [
+    {
+      "path": "github.com/3leaps/decernor",
+      "version": "",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/bmatcuk/doublestar/v4",
+      "version": "v4.10.0",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/clipperhouse/uax29/v2",
+      "version": "v2.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/cpuguy83/go-md2man/v2",
+      "version": "v2.0.6",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/davecgh/go-spew",
+      "version": "v1.1.1",
+      "license": "ISC"
+    },
+    {
+      "path": "github.com/fulmenhq/crucible",
+      "version": "v0.4.19",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/fulmenhq/gofulmen",
+      "version": "v0.3.5",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/google/uuid",
+      "version": "v1.6.0",
+      "license": "BSD-3-Clause",
+      "goneat": {
+        "version": "v0.6.0",
+        "license": "ISC"
+      }
+    },
+    {
+      "path": "github.com/inconshreveable/mousetrap",
+      "version": "v1.1.0",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "github.com/klauspost/cpuid/v2",
+      "version": "v2.2.10",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/kr/text",
+      "version": "v0.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/mattn/go-runewidth",
+      "version": "v0.0.23",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/pmezard/go-difflib",
+      "version": "v1.0.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "github.com/russross/blackfriday/v2",
+      "version": "v2.1.0",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "path": "github.com/santhosh-tekuri/jsonschema/v5",
+      "version": "v5.3.1",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "github.com/spf13/cobra",
+      "version": "v1.10.2",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "github.com/spf13/pflag",
+      "version": "v1.0.10",
+      "license": "BSD-3-Clause",
+      "goneat": {
+        "version": "v0.6.0",
+        "license": "ISC"
+      }
+    },
+    {
+      "path": "github.com/stretchr/testify",
+      "version": "v1.11.1",
+      "license": "MIT"
+    },
+    {
+      "path": "github.com/zeebo/assert",
+      "version": "v1.3.0",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "github.com/zeebo/xxh3",
+      "version": "v1.1.0",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "path": "go.uber.org/goleak",
+      "version": "v1.3.0",
+      "license": "MIT"
+    },
+    {
+      "path": "go.uber.org/multierr",
+      "version": "v1.10.0",
+      "license": "MIT"
+    },
+    {
+      "path": "go.uber.org/zap",
+      "version": "v1.28.0",
+      "license": "MIT"
+    },
+    {
+      "path": "go.yaml.in/yaml/v3",
+      "version": "v3.0.4",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "golang.org/x/mod",
+      "version": "v0.36.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "golang.org/x/sys",
+      "version": "v0.30.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "golang.org/x/text",
+      "version": "v0.37.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "golang.org/x/time",
+      "version": "v0.15.0",
+      "license": "BSD-3-Clause",
+      "goneat": {
+        "version": "v0.6.0",
+        "license": "ISC"
+      }
+    },
+    {
+      "path": "gopkg.in/check.v1",
+      "version": "v0.0.0-20161208181325-20d25e280405",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "path": "gopkg.in/natefinch/lumberjack.v2",
+      "version": "v2.2.1",
+      "license": "MIT"
+    },
+    {
+      "path": "gopkg.in/yaml.v3",
+      "version": "v3.0.1",
+      "license": "Apache-2.0"
+    }
+  ]
+}

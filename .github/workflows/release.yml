@@ -1,5 +1,6 @@
 # yamllint disable rule:document-start
 # yamllint disable rule:truthy
+# yamllint disable rule:line-length
 name: Release
 on:
   push:
@@ -7,8 +8,8 @@ on:
       - "v*"
 permissions:
   contents: write
-# The goneat-tools-runner image is the toolchain. Do not install Go or other
-# tools in the job, because doing so can shadow the bundled binaries.
+# The goneat-tools-runner image owns the build toolchain. Security scanners are
+# installed later at exact versions because they are not bundled.
 defaults:
   run:
     shell: bash
@@ -17,14 +18,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.2
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.6@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     env:
       # CI-only boundary hint for repo-root discovery
       FULMEN_WORKSPACE_ROOT: ${{ github.workspace }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -41,8 +42,8 @@ jobs:
           set -euo pipefail
           go version
           goneat --version
-          go version | grep -q 'go1\.26' || {
-            echo "::error::Need Go 1.26.x from runner image; got $(go version)"
+          go version | grep -q 'go1\.26\.6 ' || {
+            echo "::error::Need Go 1.26.6 from runner image; got $(go version)"
             exit 1
           }
       - name: Verify embedded identity mirror
@@ -60,6 +61,8 @@ jobs:
           fi
       - name: Download modules
         run: go mod download
+      - name: Security and license gates (pinned, fail closed)
+        run: make security-gates
       - name: Quality gates (non-mutating)
         run: |
           set -euo pipefail
@@ -69,7 +72,7 @@ jobs:
       - name: Package artifacts
         run: make package
       - name: Publish GitHub Release (draft)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
         with:
           # Stage as a draft so a maintainer verifies binaries before publish.
           # Flip to false (or remove) to auto-publish.

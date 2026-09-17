@@ -1,5 +1,5 @@
 .PHONY: all help bootstrap bootstrap-force hooks-ensure tools sync dependencies verify-dependencies version version-set version-bump-major version-bump-minor version-bump-patch
-.PHONY: lint test build install build-all package package-sign verify-release-key clean fmt fmt-check check-all precommit prepush pr-final license-audit
+.PHONY: lint test build install build-all package package-sign verify-release-key clean fmt fmt-check check-all precommit prepush pr-final license-audit security-gates test-security-gate-failures
 .PHONY: release-check release-prepare release-build release-preflight release-notes-check doctor validate-app-identity
 .PHONY: release-clean release-download release-notes release-stage-anchors release-insert-anchors
 .PHONY: release-checksums release-sign release-export-keys release-verify-checksums
@@ -73,7 +73,7 @@ EMBEDDED_IDENTITY_DST := internal/assets/appidentity/app.yaml
 # Bump cadence: keep within a couple of minor releases of upstream goneat so
 # local installs (via sfetch) track the toolbox runner image. CI/release do not
 # use this — they get goneat from the goneat-tools-runner image.
-GONEAT_VERSION ?= v0.5.16
+GONEAT_VERSION ?= v0.6.0
 SFETCH_BIN := $(shell command -v sfetch 2>/dev/null)
 GONEAT_BIN = $(firstword $(wildcard $(BINDIR)/goneat$(BINARY_EXT)) $(shell command -v goneat 2>/dev/null))
 
@@ -97,18 +97,19 @@ endif
 all: fmt test
 
 help:  ## Show this help message
-	@printf "%b" '$(BINARY_NAME) CLI - Available Make Targets\n\nTargets:\n  help                  - Show this help message\n  bootstrap             - Install external tools (goneat) and dependencies\n  bootstrap-force       - Force reinstall external tools\n  tools                 - Verify external tools are available\n  sync                  - No-op placeholder for ecosystem compatibility\n  sync-embedded-identity - Sync embedded identity mirror (.fulmen → internal/assets)\n  verify-embedded-identity - Verify embedded identity mirror is in sync\n  dependencies          - Generate SBOM for supply-chain security\n  license-audit         - Audit dependency licenses\n  lint                  - Run lint/format/style checks\n  test                  - Run all tests\n  build                 - Build distributable artifacts\n  install               - Install binary to BINDIR (default: ~/.local/bin)\n  build-all             - Build multi-platform binaries\n  test-standalone-binary - Verify built binary works outside repo\n  clean                 - Remove build artifacts and caches\n  fmt                   - Format code\n  fmt-check             - Check formatting without mutating (CI gate)\n  version               - Print current version\n  version-set           - Set version to specific value (VERSION=x.y.z)\n  version-bump-major    - Bump major version\n  version-bump-minor    - Bump minor version\n  version-bump-patch    - Bump patch version\n  release-check         - Run release checklist validation\n  release-prepare       - Prepare for release\n  release-build         - Build release artifacts\n  check-all             - Run all quality checks (fmt, lint, test)\n  precommit             - Run pre-commit hooks\n  prepush               - Run pre-push hooks (tag/pushtag path)\n  pr-final              - Non-mutating PR gate (identity, fmt-check, lint, test, license, build-all)\n  doctor                - Run repository health checks\n  validate-app-identity - Validate app identity configuration\n  cdrl-verify           - Fast old-baseline residue detector\n'
+	@printf "%b" '$(BINARY_NAME) CLI - Available Make Targets\n\nTargets:\n  help                  - Show this help message\n  bootstrap             - Install external tools (goneat) and dependencies\n  bootstrap-force       - Force reinstall external tools\n  tools                 - Verify external tools are available\n  sync                  - No-op placeholder for ecosystem compatibility\n  sync-embedded-identity - Sync embedded identity mirror (.fulmen → internal/assets)\n  verify-embedded-identity - Verify embedded identity mirror is in sync\n  dependencies          - Generate SBOM for supply-chain security\n  license-audit         - Audit dependency licenses\n  security-gates        - Run pinned vulnerability, code, secret, and license gates\n  lint                  - Run lint/format/style checks\n  test                  - Run all tests\n  build                 - Build distributable artifacts\n  install               - Install binary to BINDIR (default: ~/.local/bin)\n  build-all             - Build multi-platform binaries\n  test-standalone-binary - Verify built binary works outside repo\n  clean                 - Remove build artifacts and caches\n  fmt                   - Format code\n  fmt-check             - Check formatting without mutating (CI gate)\n  version               - Print current version\n  version-set           - Set version to specific value (VERSION=x.y.z)\n  version-bump-major    - Bump major version\n  version-bump-minor    - Bump minor version\n  version-bump-patch    - Bump patch version\n  release-check         - Run release checklist validation\n  release-prepare       - Prepare for release\n  release-build         - Build release artifacts\n  check-all             - Run all quality checks, including security gates\n  precommit             - Run pre-commit hooks\n  prepush               - Run pre-push hooks (tag/pushtag path)\n  pr-final              - Non-mutating PR gate (identity, fmt-check, lint, test, security, build-all)\n  doctor                - Run repository health checks\n  validate-app-identity - Validate app identity configuration\n  cdrl-verify           - Fast old-baseline residue detector\n'
 
 bootstrap:  ## Install external tools via sfetch + goneat
 	@echo "Installing external tools..."
-	@if [ -z "$(SFETCH_BIN)" ]; then echo "❌ sfetch not found (required trust anchor)"; echo ""; echo "Install sfetch with:"; echo "  curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash"; echo ""; echo "Or install into a specific directory:"; echo "  curl -sSfL https://github.com/3leaps/sfetch/releases/latest/download/install-sfetch.sh | bash -s -- --dir \"$(BINDIR)\" --yes"; exit 1; else echo "✅ sfetch found: $$($(SFETCH_BIN) --version 2>&1 | head -n1)"; echo "→ sfetch self-verify (trust anchors):"; $(SFETCH_BIN) --self-verify; fi
+	@if [ -z "$(SFETCH_BIN)" ]; then echo "❌ sfetch not found (required trust anchor)"; echo ""; echo "Install pinned sfetch v0.4.12 using the verified bootstrap instructions:"; echo "  https://github.com/3leaps/sfetch/blob/bd0e7a0e68ef5a3dc7cda862fc74e4e8bc5125f8/README.md#bootstrap-install"; exit 1; else echo "✅ sfetch found: $$($(SFETCH_BIN) --version 2>&1 | head -n1)"; echo "→ sfetch self-verify (trust anchors):"; $(SFETCH_BIN) --self-verify; fi
 	@mkdir -p "$(BINDIR)"; if [ "$(FORCE)" = "1" ] || [ "$(FORCE)" = "true" ]; then rm -f "$(BINDIR)/goneat$(BINARY_EXT)"; fi; if [ -x "$(BINDIR)/goneat$(BINARY_EXT)" ] && "$(BINDIR)/goneat$(BINARY_EXT)" --version 2>/dev/null | grep -q "$(GONEAT_VERSION)"; then echo "→ goneat already available at $(BINDIR)/goneat$(BINARY_EXT)"; else echo "→ Installing goneat $(GONEAT_VERSION) to $(BINDIR) via sfetch..."; $(SFETCH_BIN) --repo fulmenhq/goneat --tag $(GONEAT_VERSION) --dest-dir "$(BINDIR)"; fi
 	@echo "→ Installing bootstrap, foundation, lint, security, and format tools via goneat..."
-	@# Per-scope so a host-inapplicable tool (e.g. scoop is Windows-only and lives in
-	@# the bootstrap scope) is non-fatal on macOS/Linux instead of aborting the chain.
-	@for scope in bootstrap foundation lint security format; do \
-		$(GONEAT_BIN) doctor tools --scope $$scope --install --yes \
-			|| echo "⚠️  scope '$$scope' had tools unavailable on this platform (continuing)"; \
+	@# The bootstrap scope includes host-specific package managers, so it remains
+	@# advisory. Foundation/lint/security/format are required and fail closed.
+	@$(GONEAT_BIN) doctor tools --scope bootstrap --install --yes \
+		|| echo "⚠️  bootstrap scope has host-specific tools unavailable on this platform (continuing)"
+	@for scope in foundation lint security format; do \
+		$(GONEAT_BIN) doctor tools --scope $$scope --install --yes || exit $$?; \
 	done
 	@echo "→ Download Go module dependencies..." && go mod download && go mod tidy && $(MAKE) hooks-ensure && echo "✅ Bootstrap completed. Ensure '$(BINDIR)' is on your PATH"
 
@@ -155,13 +156,10 @@ dependencies:  ## Generate SBOM for supply-chain security
 verify-dependencies:  ## Alias for dependencies (compatibility)
 	@$(MAKE) dependencies
 
-license-audit:  ## Audit dependency licenses (goneat — enforces .goneat/dependencies.yaml)
+license-audit:  ## Audit and reconcile full-graph dependency licenses
 	@if [ -z "$(GONEAT_BIN)" ]; then echo "❌ goneat not found. Run 'make bootstrap' first."; exit 1; fi
-	@echo "🧪 Auditing dependency licenses (goneat dependencies)..."
-	@# goneat reads the forbidden/allowed policy from .goneat/dependencies.yaml and
-	@# degrades gracefully on the go-licenses Go-1.26-stdlib quirk (raw go-licenses
-	@# errors with "package X does not have module info").
-	@$(GONEAT_BIN) dependencies --licenses --fail-on high
+	@echo "🧪 Auditing full-graph dependency licenses..."
+	@./scripts/run-license-gate.sh
 	@echo "✅ License audit passed"
 
 version:  ## Print current version
@@ -222,6 +220,7 @@ release-notes-check:  ## Verify VERSION, identity yaml, and notes files for this
 	echo "✅ Release notes check passed ($$V)"
 
 release-preflight: release-notes-check verify-embedded-identity fmt-check lint test  ## Non-mutating tag gate
+	@$(MAKE) security-gates
 	@if [ ! -f keys/expected-fingerprints.txt ] || [ ! -f keys/expected-fingerprints.ndjson ]; then \
 		echo "❌ missing keys/expected-fingerprints.{txt,ndjson} — run make release-insert-anchors"; exit 1; \
 	fi
@@ -370,6 +369,10 @@ test: verify-embedded-identity  ## Run all tests
 	$(GOTEST) ./... -v -cover
 	@$(MAKE) build
 	@bash tests/release/ceremony_test.sh
+	@bash tests/release/workflow_policy_test.sh
+	@bash scripts/test-security-gate-failures.sh
+	@bash tests/bootstrap/failure_propagation_test.sh
+	@bash tests/security/license_report_test.sh
 	@bash tests/package-manager-handoff_test.sh
 
 lint:  ## Run lint checks with goneat
@@ -386,7 +389,13 @@ fmt-check:  ## Check formatting without mutating (CI gate)
 	@# format diffs (they sit below "high" severity), so use `goneat format --check`.
 	@echo "Checking formatting with goneat..." && $(GONEAT_BIN) format --check && echo "✅ Formatting is clean"
 
-check-all: fmt lint test  ## Run all quality checks (fmt, lint, test)
+security-gates: ## Run pinned vulnerability, code-security, secret, and license gates
+	@./scripts/run-security-gates.sh
+
+test-security-gate-failures: ## Prove security/tool failures cannot pass silently
+	@./scripts/test-security-gate-failures.sh
+
+check-all: fmt lint test security-gates  ## Run all quality checks
 	@echo "✅ All quality checks passed"
 
 precommit:  ## Run pre-commit hooks (format/lint/security + tests)
@@ -394,6 +403,7 @@ precommit:  ## Run pre-commit hooks (format/lint/security + tests)
 	@$(MAKE) verify-embedded-identity
 	@echo "Running pre-commit validation..." && $(GONEAT_BIN) assess --categories format,lint,security --fail-on critical --package-mode
 	@$(MAKE) test
+	@$(MAKE) security-gates
 	@echo "✅ Pre-commit checks passed"
 
 prepush: license-audit ## Run pre-push hooks (reserved for the tag/pushtag path)
@@ -406,7 +416,7 @@ pr-final:  ## Non-mutating PR gate (identity + fmt-check + lint + test + license
 	@$(MAKE) fmt-check
 	@$(MAKE) lint
 	@$(MAKE) test
-	@$(MAKE) license-audit
+	@$(MAKE) security-gates
 	@$(MAKE) build-all
 	@echo "✅ pr-final gate passed"
 

@@ -18,7 +18,6 @@ lint:
         - "-i"
         - "4"
         - "-ci"
-        - "-sr"
     shellcheck:
       # GPL (verify-only). Opt-in when desired.
       enabled: false
