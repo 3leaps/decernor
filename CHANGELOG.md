@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-09-17
+
+Signing-anchor and security-gate release. No new CLI verbs.
+
+### Added
+
+- Explicit vulnerability, code-security, full-history and working-tree secret,
+  and full-module-graph license gates shared by local, CI, and release checks.
+- Fail-closed regression controls for scanner execution, license reconciliation,
+  draft release policy, required bootstrap scopes, CI workspace boundaries, and
+  oversized SSH length fields.
+
+### Changed
+
+- The committed GPG primary pin reflects the replacement release certificate
+  landed after v0.1.6 and is re-verified unchanged for this cut.
+- The committed minisign trust anchor and matching structured receipt are
+  regenerated together from the current public key.
+- The build baseline moves to Go 1.26.6, Goneat v0.6.0, Fulmen Crucible v0.4.19,
+  and the digest-pinned v0.5.6 toolbox runner. Workflow Actions and local tool
+  installers use immutable reviewed versions.
+
+### Fixed
+
+- Required bootstrap tool scopes now propagate failures immediately while the
+  host-specific package-manager scope remains advisory.
+- CI repository-boundary validation and SSH public-blob length checks retain
+  their validated bounds without integer narrowing.
+
 ## [0.1.6] - 2026-08-25
 
 Package-manager distribution release. No new CLI verbs.
@@ -110,6 +139,7 @@ shape for that cut.
 - Upstream baseline changelog and release-note history inherited from the
   template.
 
+[0.1.7]: https://github.com/3leaps/decernor/releases/tag/v0.1.7
 [0.1.6]: https://github.com/3leaps/decernor/releases/tag/v0.1.6
 [0.1.5]: https://github.com/3leaps/decernor/releases/tag/v0.1.5
 [0.1.4]: https://github.com/3leaps/decernor/releases/tag/v0.1.4
