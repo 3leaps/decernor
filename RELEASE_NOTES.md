@@ -1,7 +1,20 @@
 # Release Notes
 
 Landing page for the latest Decernor cut. Per-cut payload:
-[`docs/releases/v0.1.6.md`](docs/releases/v0.1.6.md).
+[`docs/releases/v0.1.7.md`](docs/releases/v0.1.7.md).
+
+## v0.1.7 — 2026-09-17
+
+Security and signing-anchor release. The GPG primary pin landed after v0.1.6
+and is re-verified unchanged for this cut; the minisign trust anchor and its
+structured receipt are regenerated together from the current public key.
+
+Go, Goneat, the Fulmen Crucible module, the toolbox runner, workflow Actions,
+and local tool installers move to reviewed pinned versions. CI and release now
+run explicit vulnerability, code-security, secret, and full-module-graph
+license gates with fail-closed mutation coverage. Required bootstrap tool
+failures, CI workspace boundaries, and oversized SSH length fields have bounded
+regression coverage. No CLI verbs changed.
 
 ## v0.1.6 — 2026-08-25
 
