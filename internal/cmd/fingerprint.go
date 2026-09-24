@@ -65,7 +65,9 @@ to stderr; stdout contains records only.
 Examples:
   %s fingerprint ./release-materials
   %s fp ./release-materials --kind ssh,minisign
-  %s fingerprint ./release-materials --format json --fail-on-empty`, identity.BinaryName, identity.BinaryName, identity.BinaryName),
+  %s fingerprint ./release-materials --format json --fail-on-empty
+
+A file literally named verify must be passed as ./verify (or with an explicit path).`, identity.BinaryName, identity.BinaryName, identity.BinaryName),
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if configPath != "" {
@@ -116,6 +118,7 @@ Examples:
 	cmd.Flags().DurationVar(&opts.gpgTimeout, "gpg-timeout", opts.gpgTimeout, "timeout for each OpenPGP helper inspection")
 	cmd.Flags().StringVar(&opts.pathMode, "path-mode", opts.pathMode, "path disclosure mode: relative, hash, or none")
 	cmd.Flags().StringVar(&opts.gpgRole, "gpg-role", opts.gpgRole, "select GPG identities: unset (all) or primary")
+	cmd.AddCommand(newFingerprintVerifyCmd())
 	return cmd
 }
 

@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/decernor/fingerprint-verify-result.v0.schema.json",
+  "title": "Decernor Fingerprint Verify Result v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "scheme",
+    "status",
+    "validity",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "v0"
+    },
+    "kind": {
+      "enum": [
+        "gpg",
+        "minisign"
+      ]
+    },
+    "scheme": {
+      "enum": [
+        "openpgp-fingerprint-v1",
+        "minisign-public-blob-sha256-v1"
+      ]
+    },
+    "status": {
+      "enum": [
+        "match",
+        "mismatch",
+        "missing",
+        "extra"
+      ]
+    },
+    "validity": {
+      "enum": [
+        "ok",
+        "expired",
+        "expired_allowed",
+        "revoked",
+        "not_yet_valid",
+        "not_applicable"
+      ]
+    },
+    "reason": {
+      "enum": [
+        "none",
+        "fingerprint_mismatch",
+        "missing_key",
+        "extra_key",
+        "expired",
+        "expired_allowed",
+        "revoked",
+        "not_yet_valid"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "gpg"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "scheme": {
+            "const": "openpgp-fingerprint-v1"
+          },
+          "validity": {
+            "enum": [
+              "ok",
+              "expired",
+              "expired_allowed",
+              "revoked",
+              "not_yet_valid"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "minisign"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "scheme": {
+            "const": "minisign-public-blob-sha256-v1"
+          },
+          "validity": {
+            "const": "not_applicable"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "mismatch"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "fingerprint_mismatch"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "missing"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "missing_key"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "extra"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "extra_key"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "match"
+          },
+          "validity": {
+            "enum": [
+              "ok",
+              "not_applicable"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "none"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "match"
+          },
+          "validity": {
+            "const": "expired"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "expired"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "match"
+          },
+          "validity": {
+            "const": "expired_allowed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "expired_allowed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "match"
+          },
+          "validity": {
+            "const": "revoked"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "revoked"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "match"
+          },
+          "validity": {
+            "const": "not_yet_valid"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "not_yet_valid"
+          }
+        }
+      }
+    }
+  ]
+}
