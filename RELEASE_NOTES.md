@@ -1,7 +1,22 @@
 # Release Notes
 
 Landing page for the latest Decernor cut. Per-cut payload:
-[`docs/releases/v0.1.7.md`](docs/releases/v0.1.7.md).
+[`docs/releases/v0.1.8.md`](docs/releases/v0.1.8.md).
+
+## v0.1.8 — 2026-09-24
+
+`fingerprint verify` validates a committed TXT/NDJSON anchor pair and compares
+it with named public GPG and minisign exports. It reports structured results
+without fingerprints or paths, with separate exit codes for invalid input,
+unsafe input, invalid anchors, mismatch, and fatal key validity. It supports
+an explicit as-of time and an expiry allowance; primary-key revocation
+present in the supplied file remains fatal. GPG verification requires `gpg`
+on `PATH`; without it the command exits 2. Pass a file or directory literally
+named `verify` as `./verify` to use the existing fingerprint command.
+
+The release adds a maintainer-attended signed Git tag with local and remote
+verification before asset signing. Dependencies and committed signing anchors
+are unchanged from v0.1.7.
 
 ## v0.1.7 — 2026-09-17
 

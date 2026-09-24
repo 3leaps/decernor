@@ -150,12 +150,16 @@ public-blob digest with the public files. Results are NDJSON by default or a
 JSON array with `--format json`. They contain status and validity, without
 fingerprints or paths. `--as-of` takes an RFC3339 time for repeatable expiry
 evaluation. Expiry is fatal unless `--allow-expired` applies to an otherwise
-matching pair; revocation in the supplied file is always fatal. Exits are 0
+matching pair; primary-key revocation present in the supplied file is fatal.
+Revoked subkeys do not change the primary result. Exits are 0
 for a match, 2 for input/helper failure, 3 for unsafe or ambiguous input, 4
 for an invalid pair, 5 for mismatch, and 6 for fatal validity. The [verification
 contract](docs/decisions/ddr-0004-fingerprint-verification-contract.md) defines
 the full result and time semantics. A file literally named `verify` is passed
 to the existing fingerprint command as `./verify`.
+GPG verification requires `gpg` on `PATH`; if it is missing, the command
+exits 2. The helper runs GPG in an isolated temporary home without using
+your keyring or agent, and makes no network calls.
 
 For minisign public keys, `fingerprint` emits both the native
 `minisign-key-id-v1` identifier and the collision-resistant
@@ -226,7 +230,8 @@ releases.
 
 A cut is two phases:
 
-1. Tag `vX.Y.Z`. CI packages unsigned archives and opens a GitHub release.
+1. The maintainer creates and verifies a signed `vX.Y.Z` tag. CI packages
+   unsigned archives and opens a GitHub release.
 2. On an operator host, `make release` downloads those archives, stages
    committed fingerprint pins and notes, checksums, signs the SUMS
    (minisign required; PGP optional), exports publics, verifies, and
@@ -241,13 +246,15 @@ environment-variable identifiers only.
 
 Reviewers:
 
-1. Inspect the source, including `keys/expected-fingerprints.txt`.
+1. Obtain an independently trusted committed anchor pair and an already-trusted
+   Decernor installation.
 2. Download archives, signed SUMS, exported publics, and the staged pin pair.
-3. Verify the signatures over the checksum manifests.
-4. Verify archive checksums. The pin files must be members of SUMS.
-5. Run `decernor fingerprint` on the exported publics and compare to the
-   pin file (see below).
-6. Run the tool locally and consume structured findings, not key files.
+3. Run `decernor fingerprint verify` against the trusted pair and downloaded
+   public exports (see below).
+4. Use the verified public exports to verify the signatures over the checksum
+   manifests, then verify archive checksums. The staged pin files must be
+   members of SUMS and match the trusted pair.
+5. Run the tool locally and consume structured findings, not key files.
 
 Layout and signed-set membership:
 [`docs/decisions/PDR-0001-committed-signing-anchors.md`](docs/decisions/PDR-0001-committed-signing-anchors.md).
@@ -256,10 +263,31 @@ Inserter: [`keys/README.md`](keys/README.md).
 ## Verify a signed release
 
 Consume fingerprints, not secrets. Per-cut commands live in
-[`docs/releases/v0.1.7.md`](docs/releases/v0.1.7.md).
+[`docs/releases/v0.1.8.md`](docs/releases/v0.1.8.md).
 
-Download the release assets (archives, signed SUMS, exported publics,
-staged pin pair). Verify SUMS signatures, then:
+Start with an independently trusted anchor pair, such as pins already committed
+in your consuming repository, and an already-trusted Decernor installation.
+For first use, establish the pins out of band, for example from a signed tag
+whose signature you checked with a key you already trust.
+Download the release assets (archives, signed SUMS, exported publics, staged
+pin pair). First compare the downloaded public exports with your trusted pins:
+
+```sh
+decernor fingerprint verify \
+  --anchors keys/expected-fingerprints.txt \
+  --anchors-ndjson keys/expected-fingerprints.ndjson \
+  --gpg decernor-release-signing-key.asc \
+  --minisign decernor-minisign.pub
+```
+
+Then use the verified exports to check SUMS signatures, check the manifest
+digests, and compare the staged anchor files with your trusted pair. The
+downloaded anchors and keys cannot establish trust in each other. Do not use
+the binary from this release to verify its own signing keys. `fingerprint
+verify` compares public files with anchors; it does not verify signatures.
+
+For manual comparison against the trusted pair, print the two public
+fingerprints:
 
 ```sh
 decernor fingerprint decernor-release-signing-key.asc \
@@ -269,7 +297,8 @@ decernor fingerprint decernor-minisign.pub \
 ```
 
 The GPG primary fingerprint and the minisign public-blob SHA-256 must
-match the `gpg` and `minisign` lines in `expected-fingerprints.txt`.
+match the `gpg` and `minisign` lines in your trusted
+`keys/expected-fingerprints.txt`.
 Never hand-type hex into notes or a README.
 
 ## Build
