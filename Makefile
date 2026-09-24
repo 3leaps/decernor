@@ -1,6 +1,7 @@
 .PHONY: all help bootstrap bootstrap-force hooks-ensure tools sync dependencies verify-dependencies version version-set version-bump-major version-bump-minor version-bump-patch
 .PHONY: lint test build install build-all package package-sign verify-release-key clean fmt fmt-check check-all precommit prepush pr-final license-audit security-gates test-security-gate-failures
 .PHONY: release-check release-prepare release-build release-preflight release-notes-check doctor validate-app-identity
+.PHONY: release-guard-signing-env release-tag release-push-tag release-verify-tag release-verify-remote-tag test-release-tag-controls
 .PHONY: release-clean release-download release-notes release-stage-anchors release-insert-anchors
 .PHONY: release-checksums release-sign release-export-keys release-verify-checksums
 .PHONY: release-verify-signatures release-verify-keys release-verify release-upload release
@@ -239,6 +240,24 @@ release-check: release-preflight  ## Alias for release-preflight
 
 release-prepare: release-preflight  ## Alias for release-preflight
 
+release-tag: release-preflight ## Create and verify a local signed tag with maintainer MFA
+	@./scripts/release-tag.sh
+
+release-guard-signing-env: ## Check exact signing subkey, authorized primary, and release commit
+	@bash ./scripts/release-guard-signing-env.sh
+
+release-push-tag: ## Reverify and push only the signed release tag
+	@bash ./scripts/release-push-tag.sh
+
+release-verify-tag: ## Verify local signed tag and release identity
+	@./scripts/release-verify-tag.sh
+
+release-verify-remote-tag: ## Confirm GitHub reports the pushed tag as verified
+	@./scripts/release-verify-remote-tag.sh
+
+test-release-tag-controls: ## Exercise signed-tag guards with synthetic keys
+	@bash tests/release/signed_tag_test.sh
+
 release-guard-tag-version: ## Verify DECERNOR_RELEASE_TAG matches VERSION
 	@./scripts/release-guard-tag-version.sh
 
@@ -379,6 +398,7 @@ test: verify-embedded-identity verify-embedded-fingerprint-schemas  ## Run all t
 	$(GOTEST) ./... -v -cover
 	@$(MAKE) test-standalone-binary
 	@bash tests/release/ceremony_test.sh
+	@$(MAKE) test-release-tag-controls
 	@bash tests/release/workflow_policy_test.sh
 	@bash scripts/test-security-gate-failures.sh
 	@bash tests/bootstrap/failure_propagation_test.sh

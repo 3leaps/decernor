@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-09-24
+
+Public signing-anchor verification release. Dependencies and committed signing
+anchors are unchanged from v0.1.7.
+
+### Added
+
+- `fingerprint verify` checks the committed TXT/NDJSON anchor pair and its
+  schema, then recomputes GPG primary and minisign public-blob fingerprints
+  from named public files. Structured results omit fingerprints and paths.
+  Exit codes distinguish match (0), input/helper failure (2), unsafe or
+  ambiguous input (3), invalid anchor pair (4), mismatch (5), and fatal
+  validity (6). `--as-of` and `--allow-expired` provide explicit expiry checks;
+  primary-key revocation present in the supplied file remains fatal.
+- A maintainer-attended signed Git tag path checks the exact signing subkey,
+  authorized primary, reviewed release commit, tag object, and remote
+  verification before the asset-signing ceremony.
+
+### Changed
+
+- The release verification walk runs the public-input verifier alongside the
+  existing pin and exported-public checks.
+- The new `verify` subcommand reserves that bare first argument; pass a file
+  or directory literally named `verify` as `./verify` to fingerprint it.
+
 ## [0.1.7] - 2026-09-17
 
 Signing-anchor and security-gate release. No new CLI verbs.
@@ -139,6 +164,7 @@ shape for that cut.
 - Upstream baseline changelog and release-note history inherited from the
   template.
 
+[0.1.8]: https://github.com/3leaps/decernor/releases/tag/v0.1.8
 [0.1.7]: https://github.com/3leaps/decernor/releases/tag/v0.1.7
 [0.1.6]: https://github.com/3leaps/decernor/releases/tag/v0.1.6
 [0.1.5]: https://github.com/3leaps/decernor/releases/tag/v0.1.5

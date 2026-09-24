@@ -11,7 +11,7 @@ mock_bin="${tmp_dir}/bin"
 mkdir -p "${homebrew_dir}/Formula" "${scoop_dir}/bucket" "${mock_bin}"
 printf 'class Decernor < Formula\nend\n' > "${homebrew_dir}/Formula/decernor.rb"
 printf '{}\n' > "${scoop_dir}/bucket/decernor.json"
-printf '%s\n' 'update-decernor:' $'\t@test "$(VERSION)" = "0.1.7"' > "${scoop_dir}/Makefile"
+printf '%s\n' 'update-decernor:' $'\t@test "$(VERSION)" = "0.1.8"' > "${scoop_dir}/Makefile"
 printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "${mock_bin}/curl"
 chmod +x "${mock_bin}/curl"
 
@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 metadata_path, sums_path, mode = sys.argv[1:]
-version = "0.1.7"
+version = "0.1.8"
 names = [
     f"decernor_{version}_darwin_amd64.tar.gz",
     f"decernor_{version}_darwin_arm64.tar.gz",
@@ -54,7 +54,7 @@ if mode == "missing-asset":
 if mode == "missing-checksum":
     lines = lines[1:]
 Path(metadata_path).write_text(json.dumps({
-    "tagName": "v0.1.7",
+    "tagName": "v0.1.8",
     "isDraft": False,
     "isPrerelease": False,
     "assets": assets,
@@ -68,7 +68,7 @@ run_handoff() {
     DECERNOR_RELEASE_METADATA="${tmp_dir}/metadata.json" \
     DECERNOR_SHA256SUMS="${tmp_dir}/SHA256SUMS" \
     bash "${root_dir}/scripts/verify-package-manager-handoff.sh" \
-    v0.1.7 "${homebrew_dir}" "${scoop_dir}"
+    v0.1.8 "${homebrew_dir}" "${scoop_dir}"
 }
 
 write_fixture valid
