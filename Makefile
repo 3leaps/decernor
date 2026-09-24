@@ -6,6 +6,7 @@
 .PHONY: release-verify-signatures release-verify-keys release-verify release-upload release
 .PHONY: release-guard-tag-version
 .PHONY: sync-embedded-identity verify-embedded-identity test-standalone-binary cdrl-verify
+.PHONY: sync-embedded-fingerprint-schemas verify-embedded-fingerprint-schemas
 .PHONY: update-homebrew-formula update-scoop-manifest update-package-managers verify-package-manager-handoff
 
 # Binary and version information
@@ -149,6 +150,14 @@ verify-embedded-identity:  ## Fail if embedded identity mirror is out of sync
 	fi
 	@echo "✅ Embedded identity mirror is in sync"
 
+sync-embedded-fingerprint-schemas: ## Sync the two built-in fingerprint schemas
+	@cp schemas/fingerprint-record.v0.schema.json internal/assets/fingerprintschemas/
+	@cp schemas/fingerprint-verify-result.v0.schema.json internal/assets/fingerprintschemas/
+
+verify-embedded-fingerprint-schemas: ## Fail on schema mirror drift
+	@cmp -s schemas/fingerprint-record.v0.schema.json internal/assets/fingerprintschemas/fingerprint-record.v0.schema.json
+	@cmp -s schemas/fingerprint-verify-result.v0.schema.json internal/assets/fingerprintschemas/fingerprint-verify-result.v0.schema.json
+
 dependencies:  ## Generate SBOM for supply-chain security
 	@if [ -z "$(GONEAT_BIN)" ]; then echo "❌ goneat not found. Run 'make bootstrap' first."; exit 1; fi
 	@echo "Generating Software Bill of Materials (SBOM)..."; mkdir -p sbom; $(GONEAT_BIN) dependencies --sbom --sbom-output sbom/$(BINARY_NAME).cdx.json; echo "✅ SBOM generated at sbom/$(BINARY_NAME).cdx.json"
@@ -219,7 +228,7 @@ release-notes-check:  ## Verify VERSION, identity yaml, and notes files for this
 	fi; \
 	echo "✅ Release notes check passed ($$V)"
 
-release-preflight: release-notes-check verify-embedded-identity fmt-check lint test  ## Non-mutating tag gate
+release-preflight: release-notes-check verify-embedded-identity verify-embedded-fingerprint-schemas fmt-check lint test  ## Non-mutating tag gate
 	@$(MAKE) security-gates
 	@if [ ! -f keys/expected-fingerprints.txt ] || [ ! -f keys/expected-fingerprints.ndjson ]; then \
 		echo "❌ missing keys/expected-fingerprints.{txt,ndjson} — run make release-insert-anchors"; exit 1; \
@@ -311,7 +320,7 @@ update-package-managers: verify-package-manager-handoff ## Update both sibling p
 release-build: build-all  ## Build release artifacts (binaries + checksums)
 	@echo "✅ Release build complete"
 
-build: verify-embedded-identity  ## Build binary for current platform
+build: verify-embedded-identity verify-embedded-fingerprint-schemas  ## Build binary for current platform
 	@echo "→ Building $(BINARY_NAME) v$(VERSION)..."
 	@mkdir -p bin
 	@# -buildvcs=false: version/commit/date come from -ldflags; VCS stamping is
@@ -337,8 +346,9 @@ test-standalone-binary: build  ## Verify built binary runs outside repo
 	rm -rf "$$tmp" && \
 	echo "✅ Standalone binary check passed" || \
 	(rm -rf "$$tmp"; exit 1)
+	@bash tests/standalone/fingerprint_verify.sh "$(CURDIR)/bin/$(BINARY_NAME)$(BINARY_EXT)"
 
-build-all: verify-embedded-identity  ## Build multi-platform binaries and generate checksums
+build-all: verify-embedded-identity verify-embedded-fingerprint-schemas  ## Build multi-platform binaries and generate checksums
 	@echo "→ Building for multiple platforms..."
 	@mkdir -p bin
 	@# -buildvcs=false: version/commit/date come from -ldflags (see `build`).
@@ -364,10 +374,10 @@ package-sign: build-all  ## Package release archives and sign SHA256SUMS (requir
 verify-release-key:  ## Verify exported public key contains no private material (run package-sign with SIGNING_KEY_ID)
 	@./scripts/verify-public-key.sh dist/release/$(BINARY_NAME)-release-signing-key.asc
 
-test: verify-embedded-identity  ## Run all tests
+test: verify-embedded-identity verify-embedded-fingerprint-schemas  ## Run all tests
 	@echo "Running test suite..."
 	$(GOTEST) ./... -v -cover
-	@$(MAKE) build
+	@$(MAKE) test-standalone-binary
 	@bash tests/release/ceremony_test.sh
 	@bash tests/release/workflow_policy_test.sh
 	@bash scripts/test-security-gate-failures.sh
@@ -401,6 +411,7 @@ check-all: fmt lint test security-gates  ## Run all quality checks
 precommit:  ## Run pre-commit hooks (format/lint/security + tests)
 	@if [ -z "$(GONEAT_BIN)" ]; then echo "❌ goneat not found. Run 'make bootstrap' first."; exit 1; fi
 	@$(MAKE) verify-embedded-identity
+	@$(MAKE) verify-embedded-fingerprint-schemas
 	@echo "Running pre-commit validation..." && $(GONEAT_BIN) assess --categories format,lint,security --fail-on critical --package-mode
 	@$(MAKE) test
 	@$(MAKE) security-gates
@@ -413,6 +424,7 @@ prepush: license-audit ## Run pre-push hooks (reserved for the tag/pushtag path)
 pr-final:  ## Non-mutating PR gate (identity + fmt-check + lint + test + license + build-all)
 	@echo "🔒 Running pr-final gate (non-mutating)..."
 	@$(MAKE) verify-embedded-identity
+	@$(MAKE) verify-embedded-fingerprint-schemas
 	@$(MAKE) fmt-check
 	@$(MAKE) lint
 	@$(MAKE) test

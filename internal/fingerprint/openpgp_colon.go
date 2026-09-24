@@ -12,15 +12,23 @@ type openPGPIdentity struct {
 	Fingerprint string
 	KeyRole     KeyRole
 	KeyID       string
+	Secret      bool
+	Validity    string
+	CreatedRaw  string
+	ExpiryRaw   string
 }
 
 func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 	var (
-		pendingRole  KeyRole
-		pendingKeyID string
-		havePending  bool
-		seen         = map[string]bool{}
-		out          []openPGPIdentity
+		pendingRole     KeyRole
+		pendingKeyID    string
+		pendingSecret   bool
+		pendingValidity string
+		pendingCreated  string
+		pendingExpiry   string
+		havePending     bool
+		seen            = map[string]bool{}
+		out             []openPGPIdentity
 	)
 
 	flushMissing := func() error {
@@ -46,6 +54,10 @@ func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 			havePending = true
 			pendingRole = KeyRolePrimary
 			pendingKeyID = colonKeyID(fields)
+			pendingSecret = fields[0] == "sec"
+			pendingValidity = colonField(fields, 1)
+			pendingCreated = colonField(fields, 5)
+			pendingExpiry = colonField(fields, 6)
 		case "sub", "ssb":
 			if err := flushMissing(); err != nil {
 				return nil, err
@@ -53,6 +65,10 @@ func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 			havePending = true
 			pendingRole = KeyRoleSubkey
 			pendingKeyID = colonKeyID(fields)
+			pendingSecret = fields[0] == "ssb"
+			pendingValidity = colonField(fields, 1)
+			pendingCreated = colonField(fields, 5)
+			pendingExpiry = colonField(fields, 6)
 		case "fpr":
 			if !havePending {
 				return nil, fmt.Errorf("openpgp colon: orphan fingerprint record")
@@ -76,10 +92,18 @@ func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 				Fingerprint: value,
 				KeyRole:     pendingRole,
 				KeyID:       keyID,
+				Secret:      pendingSecret,
+				Validity:    pendingValidity,
+				CreatedRaw:  pendingCreated,
+				ExpiryRaw:   pendingExpiry,
 			})
 			havePending = false
 			pendingRole = ""
 			pendingKeyID = ""
+			pendingSecret = false
+			pendingValidity = ""
+			pendingCreated = ""
+			pendingExpiry = ""
 		}
 	}
 	if err := flushMissing(); err != nil {
@@ -89,6 +113,13 @@ func parseOpenPGPColonIdentities(output string) ([]openPGPIdentity, error) {
 		return nil, fmt.Errorf("openpgp colon: no identities")
 	}
 	return out, nil
+}
+
+func colonField(fields []string, index int) string {
+	if len(fields) <= index {
+		return ""
+	}
+	return fields[index]
 }
 
 func colonKeyID(fields []string) string {

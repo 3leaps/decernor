@@ -158,6 +158,34 @@ else
 	note "SKIP: schema path (no host decernor binary)"
 fi
 
+# The additive verifier must reject both existing malformed-pair controls
+# before its GPG helper can turn the request into a derivation error.
+if [ -n "$DECERNOR_BIN" ] && [ -f "$ROOT/keys/expected-fingerprints.txt" ]; then
+	mut="$(mktemp -d)"
+	printf '%s\n' '-----BEGIN PGP PUBLIC KEY BLOCK-----' 'synthetic' '-----END PGP PUBLIC KEY BLOCK-----' >"$mut/public.asc"
+	python3 - "$mut/public.pub" <<'PY'
+import base64, pathlib, sys
+pathlib.Path(sys.argv[1]).write_text('untrusted comment: minisign public key\n' + base64.b64encode(b'Ed12345678' + bytes(32)).decode() + '\n')
+PY
+	cp "$ROOT/keys/expected-fingerprints.ndjson" "$mut/anchors.ndjson"
+	awk '{print $0, "extra"}' "$ROOT/keys/expected-fingerprints.txt" >"$mut/anchors.txt"
+	set +e
+	"$DECERNOR_BIN" fingerprint verify --anchors "$mut/anchors.txt" --anchors-ndjson "$mut/anchors.ndjson" \
+		--gpg "$mut/public.asc" --minisign "$mut/public.pub" >"$mut/out" 2>"$mut/err"
+	status=$?
+	set -e
+	if [ "$status" -eq 4 ] && [ ! -s "$mut/out" ]; then pass "verify refuses extra TXT token with empty stdout"; else fail "verify extra TXT token status=$status"; fi
+	cp "$ROOT/keys/expected-fingerprints.txt" "$mut/anchors.txt"
+	cat "$ROOT/keys/expected-fingerprints.ndjson" "$ROOT/keys/expected-fingerprints.ndjson" >"$mut/anchors.ndjson"
+	set +e
+	"$DECERNOR_BIN" fingerprint verify --anchors "$mut/anchors.txt" --anchors-ndjson "$mut/anchors.ndjson" \
+		--gpg "$mut/public.asc" --minisign "$mut/public.pub" >"$mut/out" 2>"$mut/err"
+	status=$?
+	set -e
+	if [ "$status" -eq 4 ] && [ ! -s "$mut/out" ]; then pass "verify refuses extra NDJSON record with empty stdout"; else fail "verify extra NDJSON record status=$status"; fi
+	rm -rf "$mut"
+fi
+
 if [ "$FAIL" -ne 0 ]; then
 	note "$FAIL ceremony probe(s) failed"
 	exit 1

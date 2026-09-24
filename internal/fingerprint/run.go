@@ -260,16 +260,31 @@ func applyFingerprints(ctx context.Context, path string, record Record, data []b
 //   - parse-unsupported: a started gpg process rejected the material or emitted
 //     no usable fingerprint (ExitError path)
 func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration) ([]openPGPIdentity, scanner.ArtifactReason) {
+	out, reason := runOpenPGPImport(ctx, path, nil, timeout)
+	if reason != "" {
+		return nil, reason
+	}
+	identities, err := parseOpenPGPColonIdentities(out)
+	if err != nil {
+		return nil, scanner.ArtifactReasonParseUnsupported
+	}
+	return identities, ""
+}
+
+// runOpenPGPImport is shared by the existing fingerprint path and verify's
+// captured-byte path. A non-nil data buffer is passed on stdin; only the
+// existing fingerprint command still supplies a named path to GPG.
+func runOpenPGPImport(ctx context.Context, path string, data []byte, timeout time.Duration) (string, scanner.ArtifactReason) {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
 	gpgPath, err := exec.LookPath("gpg")
 	if err != nil {
-		return nil, scanner.ArtifactReasonHelperUnavailable
+		return "", scanner.ArtifactReasonHelperUnavailable
 	}
 	home, err := os.MkdirTemp("", "decernor-gpg-fp-")
 	if err != nil {
-		return nil, scanner.ArtifactReasonHelperUnavailable
+		return "", scanner.ArtifactReasonHelperUnavailable
 	}
 	defer func() {
 		_ = os.RemoveAll(home)
@@ -280,27 +295,30 @@ func openPGPFingerprints(ctx context.Context, path string, timeout time.Duration
 
 	// Isolated helper home only — never the operator default keyring.
 	// Use the resolved LookPath result so PATH is not re-resolved at exec time.
+	if data != nil {
+		path = "-"
+	}
 	cmd := exec.CommandContext(ctx, gpgPath, "--batch", "--no-tty", "--homedir", home, "--with-colons", "--import-options", "show-only", "--dry-run", "--import", path)
-	cmd.Stdin = strings.NewReader("")
+	if data != nil {
+		cmd.Stdin = bytes.NewReader(data)
+	} else {
+		cmd.Stdin = strings.NewReader("")
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, scanner.ArtifactReasonHelperUnavailable
+			return "", scanner.ArtifactReasonHelperUnavailable
 		}
 		// A process that actually started and exited nonzero is a parse/reject.
 		// Start/setup failures (invalid image, permission, disappeared binary)
 		// are helper-unavailable — no material parse occurred.
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			return nil, scanner.ArtifactReasonParseUnsupported
+			return "", scanner.ArtifactReasonParseUnsupported
 		}
-		return nil, scanner.ArtifactReasonHelperUnavailable
+		return "", scanner.ArtifactReasonHelperUnavailable
 	}
-	identities, err := parseOpenPGPColonIdentities(string(out))
-	if err != nil {
-		return nil, scanner.ArtifactReasonParseUnsupported
-	}
-	return identities, ""
+	return string(out), ""
 }
 
 func applyGPGRoleSelection(records *[]Record, role KeyRole) error {

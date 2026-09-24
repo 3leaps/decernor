@@ -177,6 +177,12 @@ func ClassifyBuffer(ctx context.Context, path string, data []byte, cfg Config) (
 	return classifyBufferWithPacketLister(ctx, path, data, cfg, gpgPacketLister{})
 }
 
+// ClassifyCaptured inspects a single captured buffer. Its OpenPGP packet
+// helper receives these bytes on stdin and never reopens the named input.
+func ClassifyCaptured(ctx context.Context, name string, data []byte, cfg Config) (Artifact, bool) {
+	return classifyBufferWithPacketLister(ctx, name, data, cfg, capturedPacketLister{data: data})
+}
+
 func classifyPrefixWithPacketLister(ctx context.Context, path string, prefix []byte, cfg Config, lister packetLister) (Artifact, bool) {
 	if cfg.GPGTimeout <= 0 {
 		cfg.GPGTimeout = 10 * time.Second

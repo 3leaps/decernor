@@ -86,3 +86,9 @@ if mini[0].get("fingerprint") != want["minisign"]:
 
 print("[ok] staged pins, schema, TXT/NDJSON, and recomputed publics agree")
 PY
+
+# Retain the independent shell/Python checks for this cut. The new verifier
+# runs beside them so consumer behavior is exercised during our own ceremony.
+"$DECERNOR_BIN" fingerprint verify \
+	--anchors "$STAGED_TXT" --anchors-ndjson "$STAGED_NDJSON" \
+	--gpg "$ASC" --minisign "$PUB" >/dev/null

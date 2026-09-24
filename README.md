@@ -135,6 +135,28 @@ Records use `schema_version:"v0"` and the schema in
 `schemas/fingerprint-record.v0.schema.json`. Config files use
 `schemas/fingerprint-config.v0.schema.json`.
 
+To compare a committed anchor pair with exported public key files:
+
+```sh
+decernor fingerprint verify --anchors keys/expected-fingerprints.txt \
+  --anchors-ndjson keys/expected-fingerprints.ndjson \
+  --gpg exported-public.asc --minisign exported.pub
+```
+
+The verifier accepts named regular files only. Materialize piped input first;
+`/dev/stdin` and process substitution are refused. It checks the pair against
+the embedded fingerprint schema, then compares the GPG primary and minisign
+public-blob digest with the public files. Results are NDJSON by default or a
+JSON array with `--format json`. They contain status and validity, without
+fingerprints or paths. `--as-of` takes an RFC3339 time for repeatable expiry
+evaluation. Expiry is fatal unless `--allow-expired` applies to an otherwise
+matching pair; revocation in the supplied file is always fatal. Exits are 0
+for a match, 2 for input/helper failure, 3 for unsafe or ambiguous input, 4
+for an invalid pair, 5 for mismatch, and 6 for fatal validity. The [verification
+contract](docs/decisions/ddr-0004-fingerprint-verification-contract.md) defines
+the full result and time semantics. A file literally named `verify` is passed
+to the existing fingerprint command as `./verify`.
+
 For minisign public keys, `fingerprint` emits both the native
 `minisign-key-id-v1` identifier and the collision-resistant
 `minisign-public-blob-sha256-v1` fingerprint (lowercase 64-hex in the
