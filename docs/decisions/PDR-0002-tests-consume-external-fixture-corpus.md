@@ -35,9 +35,16 @@ bodies, as well as calls to key-generation tools or library key generators.
 
 Not covered:
 
-- **Detector search material** in `internal/scanner/corpus.go`: format markers
-  and header constructors that Decernor looks _for_. See
+- **Detector search material**: an atomic needle the detector compares
+  against, such as one marker, magic value, filename, or header string. A
+  header constructor may return one needle. Policy tables, such as which
+  parameter names are secret, are also search material. See
   `docs/search-materials.md`.
+
+A body composed from needles is a specimen, not search material. A test that
+concatenates markers or tokens into a key-shaped body is generation, wherever
+the needles come from.
+
 - Non-key test inputs: plain text, configuration, malformed non-key bytes.
 
 ## Corpus
@@ -63,7 +70,7 @@ specimen as the manifest states.
 | Pin             | `testdata/synthcorpus.pin`: full commit SHA and fixture-manifest digest                                                  |
 | CI              | Check out synthcorpus at the pinned SHA with read-only contents and no persisted credentials; verify the manifest digest |
 | Missing corpus  | **Fails** the run, in CI and in `make test`. Never a skip                                                                |
-| Pin mismatch    | Fails in CI; warns locally                                                                                               |
+| Pin mismatch    | Fails, in CI and locally. `DECERNOR_SYNTHCORPUS_UNPINNED=1` permits an exploratory local run, reported as not evidence   |
 | Dependency form | A pinned checkout, not a Go module dependency                                                                            |
 
 ## Tests
@@ -83,10 +90,14 @@ specimen as the manifest states.
 
 Some Decernor tests still assemble key-shaped bodies in memory, and two invoke a
 key-generation tool. That is non-conforming with the rule above. **Owner:**
-Decernor devlead. **Trigger:** the agent-key specimens move with the next
-release that changes agent-key classification; the remaining bodies and the
-generation calls move in the release after. A repository policy test then
-rejects key-generation invocations anywhere in the tree.
+Decernor devlead. **Triggers:**
+
+- **Agent-key specimens:** moved to the corpus in the same release that
+  introduces agent-key content classification. That release does not ship
+  with agent-key bodies assembled in tests.
+- **Remaining bodies and generation calls:** moved in the first release after
+  this record is accepted. A repository policy test then rejects
+  key-generation invocations anywhere in the tree.
 
 ## Consequences
 
