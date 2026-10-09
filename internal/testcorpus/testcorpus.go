@@ -47,6 +47,7 @@ type Manifest struct {
 	SchemaVersion   string              `json:"schema_version"`
 	Kind            string              `json:"kind"`
 	FixturesRoot    string              `json:"fixtures_root"`
+	InvariantRules  map[string]string   `json:"invariant_rules"`
 	ClassInvariants map[string][]string `json:"class_invariants"`
 	Fixtures        map[string]Fixture  `json:"fixtures"`
 }

@@ -53,9 +53,9 @@ func TestAgentKeyCorpusVerdicts(t *testing.T) {
 				report := scan(t, bin, scanRoot, profile)
 				own := findingsFor(report, staged)
 				checkExpected(t, profile, fixture, own)
-				checkClassInvariants(t, profile, fixture.Class, own)
+				checkClassInvariants(t, profile, corpus.Manifest.ClassInvariants[fixture.Class], own)
 			}
-			checkGuardread(t, bin, staged, fixture)
+			checkGuardread(t, bin, staged, fixture, corpus.Manifest.ClassInvariants[fixture.Class])
 		})
 	}
 }
@@ -103,40 +103,106 @@ func checkExpected(t *testing.T, profile string, fixture Fixture, own []scanFind
 	}
 }
 
-// checkClassInvariants enforces per-class rules that every specimen inherits,
-// independent of its individual expectation.
-func checkClassInvariants(t *testing.T, profile, class string, own []scanFinding) {
-	t.Helper()
-	switch class {
-	case "plaintext", "protected", "malformed":
+// scanRules implements the manifest's scan-side invariant rules. Each rule
+// returns a failure message, or "" when the specimen's findings satisfy it.
+var scanRules = map[string]func(own []scanFinding) string{
+	"has-finding": func(own []scanFinding) string {
 		if len(own) == 0 {
-			t.Errorf("%s: class %s produced no finding", profile, class)
+			return "no finding"
 		}
+		return ""
+	},
+	"not-hardware-stub": func(own []scanFinding) string {
 		for _, f := range own {
 			if f.Classification == "hardware-stub" {
-				t.Errorf("%s: class %s classified as hardware-stub", profile, class)
+				return "classified as hardware-stub"
 			}
 		}
-		if class != "protected" && !anySeverity(own, "unsafe") {
-			t.Errorf("%s: class %s not unsafe: %v", profile, class, own)
+		return ""
+	},
+	"unsafe-every-profile": func(own []scanFinding) string {
+		if !anySeverity(own, "unsafe") {
+			return "no unsafe finding"
 		}
-	case "hardware-stub":
-		if len(own) == 0 {
-			t.Errorf("%s: hardware stub produced no finding", profile)
-		}
+		return ""
+	},
+	"no-secret-exposure": func(own []scanFinding) string {
 		for _, f := range own {
 			if f.Exposure == "secret" {
-				t.Errorf("%s: hardware stub reported secret exposure", profile)
+				return "finding reports secret exposure"
 			}
 		}
-	case "benign":
+		return ""
+	},
+	"no-finding": func(own []scanFinding) string {
 		if len(own) != 0 {
-			t.Errorf("%s: benign specimen produced findings %v", profile, own)
+			return "unexpected findings"
+		}
+		return ""
+	},
+}
+
+// guardreadRules implements the manifest's guardread-side invariant rules.
+var guardreadRules = map[string]bool{
+	"guardread-refuse": true,
+	"guardread-pass":   false,
+}
+
+// checkClassInvariants enforces exactly the rules the manifest names for the
+// specimen's class, independent of its per-specimen expectation.
+func checkClassInvariants(t *testing.T, profile string, rules []string, own []scanFinding) {
+	t.Helper()
+	for _, rule := range rules {
+		check, ok := scanRules[rule]
+		if !ok {
+			continue
+		}
+		if msg := check(own); msg != "" {
+			t.Errorf("%s: invariant %s: %s: %v", profile, rule, msg, own)
 		}
 	}
 }
 
-func checkGuardread(t *testing.T, bin, staged string, fixture Fixture) {
+// TestManifestRulesMatchHarness fails when the manifest declares a rule the
+// harness does not enforce, or the harness enforces a rule the manifest does
+// not declare, or a class names an undeclared rule.
+func TestManifestRulesMatchHarness(t *testing.T) {
+	corpus, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	implemented := map[string]bool{}
+	for rule := range scanRules {
+		implemented[rule] = true
+	}
+	for rule := range guardreadRules {
+		implemented[rule] = true
+	}
+	for rule := range corpus.Manifest.InvariantRules {
+		if !implemented[rule] {
+			t.Errorf("manifest rule %q is not enforced by the harness", rule)
+		}
+	}
+	for rule := range implemented {
+		if _, ok := corpus.Manifest.InvariantRules[rule]; !ok {
+			t.Errorf("harness rule %q is not declared in the manifest", rule)
+		}
+	}
+	for class, rules := range corpus.Manifest.ClassInvariants {
+		for _, rule := range rules {
+			if _, ok := corpus.Manifest.InvariantRules[rule]; !ok {
+				t.Errorf("class %s names undeclared rule %q", class, rule)
+			}
+		}
+	}
+	for rel, f := range corpus.Manifest.Fixtures {
+		if _, ok := corpus.Manifest.ClassInvariants[f.Class]; !ok {
+			t.Errorf("%s: class %q has no invariants", rel, f.Class)
+		}
+	}
+}
+
+func checkGuardread(t *testing.T, bin, staged string, fixture Fixture, rules []string) {
 	t.Helper()
 	cmd := exec.Command(bin, "guardread", staged)
 	out, err := cmd.Output()
@@ -159,8 +225,14 @@ func checkGuardread(t *testing.T, bin, staged string, fixture Fixture) {
 	default:
 		t.Fatalf("manifest guardread %q", fixture.Guardread)
 	}
-	if fixture.Class != "benign" && fixture.Class != "keyring-internal" && !refused {
-		t.Errorf("guardread passed a %s specimen", fixture.Class)
+	for _, rule := range rules {
+		wantRefuse, ok := guardreadRules[rule]
+		if !ok {
+			continue
+		}
+		if refused != wantRefuse || (wantRefuse && len(out) != 0) {
+			t.Errorf("invariant %s: refused=%v stdout=%d bytes", rule, refused, len(out))
+		}
 	}
 }
 
