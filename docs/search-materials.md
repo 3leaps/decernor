@@ -17,8 +17,7 @@ Keep detector strings and filename lists in `corpus.go` unless a value is purely
 - Do not commit real private keys, public keys tied to real identities, revocation certificates, keyrings, passphrases, fingerprints from real material, or scan output from real machines.
 - Key-shaped test inputs come from the external fixture corpus, never from test helpers in this repository ([PDR-0002](decisions/PDR-0002-tests-consume-external-fixture-corpus.md)).
 - Use mocked `gpg --list-packets` output for OpenPGP packet classification tests.
-- If a static fixture becomes necessary, it must be synthetic, documented, and
-  reviewed for secret-handling risk.
+- Do not add key-shaped fixture files to this repository. New specimens belong in the external fixture corpus.
 
 ## Current Guardrails
 
