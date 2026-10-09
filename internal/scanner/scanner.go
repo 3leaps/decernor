@@ -137,11 +137,27 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 			return nil
 		}
 
-		// An agent key judged on a prefix could hide a second key past it;
-		// classify such files on their full (size-bounded) content.
-		if cfg.EnableGPG && info.Size() > int64(len(prefix)) && (isAgentKeyPath(path) || agentKeyFormFor(prefix) != agentKeyFormNone) {
+		// A file larger than the prefix could hide an agent key past it.
+		// Classify on full (size-bounded) content when the path or prefix
+		// says agent key, or when an agent-key token appears anywhere.
+		if cfg.EnableGPG && info.Size() > int64(len(prefix)) {
 			full, err := readBounded(path, cfg.MaxFileSize)
-			if err == nil {
+			if err != nil {
+				result.AddFinding(Finding{
+					Path:           path,
+					Code:           "SCAN-READ-ERROR",
+					Priority:       PriorityP4,
+					Classification: ClassParseError,
+					Severity:       SeverityWarn,
+					Retention:      RetentionInspectManually,
+					Exposure:       ExposureUnknown,
+					Confidence:     ConfidenceLow,
+					Evidence:       err.Error(),
+					Recommendation: "Verify file permissions and rerun the scan.",
+				})
+				return nil
+			}
+			if isAgentKeyPath(path) || agentKeyFormFor(prefix) != agentKeyFormNone || agentKeyTokenCount(full) > 0 {
 				prefix = full
 			}
 		}
@@ -204,6 +220,9 @@ func ClassifyCaptured(ctx context.Context, name string, data []byte, cfg Config)
 func classifyPrefixWithPacketLister(ctx context.Context, path string, prefix []byte, cfg Config, lister packetLister) (Artifact, bool) {
 	if cfg.GPGTimeout <= 0 {
 		cfg.GPGTimeout = 10 * time.Second
+	}
+	if cfg.Profile == "" {
+		cfg.Profile = ProfileArtifact
 	}
 	if !cfg.EnableGPG && !cfg.EnableSSH && !cfg.EnableMinisign {
 		cfg.EnableGPG = true

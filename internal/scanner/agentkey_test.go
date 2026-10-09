@@ -323,3 +323,39 @@ func TestScanKeyringInternalFileContentStillChecked(t *testing.T) {
 		t.Fatalf("unsafes=%d findings=%#v", result.Unsafes, result.Findings)
 	}
 }
+
+func TestAgentKeyHugeCanonicalLengthDoesNotPanic(t *testing.T) {
+	for _, in := range []string{
+		"(9223372036854775807:" + agentKeyTokenPlain,
+		"(9223372036854775806:x)",
+		"(18446744073709551615:x)",
+		"Key: (" + agentKeyTokenShadowed + " (ecc (9223372036854775807:q)))\n",
+	} {
+		_ = agentKeyFormFor([]byte(in))
+	}
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "huge.key"), "(9223372036854775807:"+agentKeyTokenPlain)
+	if _, err := scanWithPacketLister(context.Background(), dir, Config{}, fakePacketLister{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestScanPlainAgentKeyPastPrefixOffKeyPath(t *testing.T) {
+	dir := t.TempDir()
+	prelude := strings.Repeat("# innocuous comment line for prefix test\n", 2*prefixBytes/40)
+	mustWrite(t, filepath.Join(dir, "notes.txt"), prelude+"Key: ("+agentKeyTokenPlain+" (ecc (d #00#)))\n")
+	result, err := scanWithPacketLister(context.Background(), dir, Config{Profile: ProfileWorkstation}, fakePacketLister{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Unsafes != 1 {
+		t.Fatalf("unsafes=%d findings=%#v", result.Unsafes, result.Findings)
+	}
+}
+
+func TestAgentKeyMidTokenContinuationJoinsWithoutSeparator(t *testing.T) {
+	data := "Key: (private-\n key (ecc (d #00#)))\n"
+	if got := agentKeyFormFor([]byte(data)); got != agentKeyFormPlain {
+		t.Fatalf("form = %q, want plaintext", got)
+	}
+}

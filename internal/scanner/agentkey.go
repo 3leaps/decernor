@@ -339,7 +339,7 @@ func extendedKeyItems(data []byte) ([][]byte, bool) {
 				return nil, false
 			}
 			if current != nil {
-				current.WriteByte(' ')
+				// GnuPG joins continuation lines without a separator.
 				current.Write(bytes.TrimLeft(line, " \t"))
 			}
 			continue
@@ -448,7 +448,9 @@ func readSexpAtom(expr []byte, i int) (string, int, bool) {
 		}
 		if j < len(expr) && expr[j] == ':' {
 			n, err := strconv.Atoi(string(expr[i:j]))
-			if err != nil || n < 0 || j+1+n > len(expr) {
+			// Compare against the remaining length before adding, so a huge
+			// declared length cannot overflow the bounds check.
+			if err != nil || n < 0 || n > len(expr)-(j+1) {
 				return "", 0, false
 			}
 			return string(expr[j+1 : j+1+n]), j + 1 + n, true
