@@ -1,6 +1,6 @@
 # Pinned external fixture corpus for key-shaped test inputs (see
 # docs/decisions/PDR-0002-tests-consume-external-fixture-corpus.md).
 repository=https://github.com/3leaps/synthcorpus
-commit=3be3ee0eb39175175a6adf0eb0470bed474ba305
+commit=947cbc760610ab6a6b6dd0aacf12bb49f86b28ee
 manifest=manifests/decernor-scan-verdicts.json
 manifest_sha256=1b3cf6697f0cf148332f5412f930619f365f9925456781f431fb2687ae750cc6

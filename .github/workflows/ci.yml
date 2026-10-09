@@ -30,7 +30,7 @@ jobs:
       DECERNOR_SYNTHCORPUS_ROOT: ${{ github.workspace }}/synthcorpus
       # Must equal the commit in testdata/synthcorpus.pin; the test harness
       # fails if the checkout does not match the pin.
-      SYNTHCORPUS_COMMIT: 3be3ee0eb39175175a6adf0eb0470bed474ba305
+      SYNTHCORPUS_COMMIT: 947cbc760610ab6a6b6dd0aacf12bb49f86b28ee
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0

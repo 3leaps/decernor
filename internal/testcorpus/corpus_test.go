@@ -178,6 +178,16 @@ func TestManifestRulesMatchHarness(t *testing.T) {
 	for rule := range guardreadRules {
 		implemented[rule] = true
 	}
+	for rule := range SupportedRules {
+		if !implemented[rule] {
+			t.Errorf("supported rule %q has no implementation", rule)
+		}
+	}
+	for rule := range implemented {
+		if !SupportedRules[rule] {
+			t.Errorf("implemented rule %q is not in the supported vocabulary", rule)
+		}
+	}
 	for rule := range corpus.Manifest.InvariantRules {
 		if !implemented[rule] {
 			t.Errorf("manifest rule %q is not enforced by the harness", rule)

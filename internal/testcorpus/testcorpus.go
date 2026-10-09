@@ -111,6 +111,9 @@ func Load() (Corpus, error) {
 	if m.SchemaVersion != "v0" || m.Kind != "synthcorpus-decernor-scan-verdicts" || len(m.Fixtures) == 0 {
 		return Corpus{}, fmt.Errorf("unexpected manifest %q/%q with %d fixtures", m.SchemaVersion, m.Kind, len(m.Fixtures))
 	}
+	if err := validateVocabulary(m); err != nil {
+		return Corpus{}, err
+	}
 	for rel, f := range m.Fixtures {
 		body, err := os.ReadFile(filepath.Join(root, m.FixturesRoot, filepath.FromSlash(rel)))
 		if err != nil {
@@ -182,4 +185,72 @@ func repoRoot() (string, error) {
 		return "", errors.New("runtime.Caller failed")
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..")), nil
+}
+
+// Supported manifest v0 vocabulary. The corpus owns these closed sets; this
+// harness implements them and rejects any value it does not support. A
+// shared name does not prove shared meaning: rule semantics are exercised by
+// the harness's own negative controls, not by this check.
+var (
+	supportedPlacements = map[string]bool{"agent-key-dir": true, "keyring-home": true, "root": true}
+	supportedClasses    = map[string]bool{"plaintext": true, "protected": true, "hardware-stub": true, "malformed": true, "benign": true, "keyring-internal": true}
+	supportedProfiles   = map[string]bool{"artifact": true, "workstation": true}
+	supportedGuardread  = map[string]bool{"refuse": true, "pass": true}
+	// SupportedRules is the rule vocabulary this harness enforces.
+	SupportedRules = map[string]bool{
+		"has-finding": true, "not-hardware-stub": true, "unsafe-every-profile": true,
+		"guardread-refuse": true, "guardread-pass": true, "no-secret-exposure": true, "no-finding": true,
+	}
+)
+
+func validateVocabulary(m Manifest) error {
+	for rule := range m.InvariantRules {
+		if !SupportedRules[rule] {
+			return fmt.Errorf("manifest declares unsupported rule %q", rule)
+		}
+	}
+	for class, rules := range m.ClassInvariants {
+		if !supportedClasses[class] {
+			return fmt.Errorf("manifest declares unsupported class %q", class)
+		}
+		seen := map[string]bool{}
+		for _, rule := range rules {
+			if !SupportedRules[rule] {
+				return fmt.Errorf("class %s names unsupported rule %q", class, rule)
+			}
+			if seen[rule] {
+				return fmt.Errorf("class %s repeats rule %q", class, rule)
+			}
+			seen[rule] = true
+		}
+		if len(rules) == 0 {
+			return fmt.Errorf("class %s has no rules", class)
+		}
+	}
+	for rel, f := range m.Fixtures {
+		if !supportedClasses[f.Class] {
+			return fmt.Errorf("%s: unsupported class %q", rel, f.Class)
+		}
+		if !supportedPlacements[f.Placement] {
+			return fmt.Errorf("%s: unsupported placement %q", rel, f.Placement)
+		}
+		if !supportedGuardread[f.Guardread] {
+			return fmt.Errorf("%s: unsupported guardread %q", rel, f.Guardread)
+		}
+		expectations := append([]Expectation{}, f.AlsoExpect...)
+		if f.Expect != nil {
+			expectations = append(expectations, *f.Expect)
+		}
+		for _, e := range expectations {
+			if len(e.Severity) != len(supportedProfiles) {
+				return fmt.Errorf("%s: %s must give a severity for exactly %d profiles", rel, e.Code, len(supportedProfiles))
+			}
+			for profile := range e.Severity {
+				if !supportedProfiles[profile] {
+					return fmt.Errorf("%s: %s names unsupported profile %q", rel, e.Code, profile)
+				}
+			}
+		}
+	}
+	return nil
 }
