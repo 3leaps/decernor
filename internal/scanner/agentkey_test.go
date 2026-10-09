@@ -87,3 +87,28 @@ func TestKeyringNamesByProfile(t *testing.T) {
 		}
 	}
 }
+
+// TestAgentKeyArtifactsHaveNoFingerprintScheme asserts every agent-key finding
+// maps to unsupported-kind, so fingerprint emits a reason-bearing null record.
+func TestAgentKeyArtifactsHaveNoFingerprintScheme(t *testing.T) {
+	cases := []struct {
+		code  string
+		class Classification
+	}{
+		{"GPG-AGENT-UNPROTECTED-KEY", ClassUnsafeSecret},
+		{"GPG-AGENT-PROTECTED-KEY", ClassProtectedSecret},
+		{"GPG-AGENT-SHADOWED-KEY", ClassHardwareStub},
+		{"GPG-AGENT-KEY-UNRECOGNIZED", ClassParseError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.code, func(t *testing.T) {
+			artifact, ok := mustArtifact(Finding{Path: "k", Code: tc.code, Classification: tc.class, Severity: SeverityWarn})
+			if !ok {
+				t.Fatal("finding did not map to an artifact")
+			}
+			if artifact.Kind != ArtifactKindGPG || artifact.Reason != ArtifactReasonUnsupportedKind {
+				t.Fatalf("kind/reason = %s/%q, want gpg/unsupported-kind", artifact.Kind, artifact.Reason)
+			}
+		})
+	}
+}

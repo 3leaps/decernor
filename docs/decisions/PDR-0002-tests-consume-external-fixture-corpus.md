@@ -88,16 +88,18 @@ specimen as the manifest states.
 
 ## Transitional state
 
-Some Decernor tests still assemble key-shaped bodies in memory, and two invoke a
-key-generation tool. That is non-conforming with the rule above. **Owner:**
+Some Decernor tests still assemble key-shaped bodies in memory, and four sites
+invoke a key-generation tool: two in the OpenPGP verification tests and two in
+the signed-tag release control tests. That is non-conforming with the rule above. **Owner:**
 Decernor devlead. **Triggers:**
 
 - **Agent-key specimens:** moved to the corpus in the same release that
   introduces agent-key content classification. That release does not ship
   with agent-key bodies assembled in tests.
 - **Remaining bodies and generation calls:** moved in the first release after
-  this record is accepted. A repository policy test then rejects
-  key-generation invocations anywhere in the tree.
+  this record is accepted, including the release control tests. A repository
+  policy test then rejects key-generation invocations anywhere in the tree,
+  with no exemption for release tests.
 
 ## Consequences
 
