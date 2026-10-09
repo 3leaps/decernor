@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   unrecognized (`GPG-AGENT-KEY-UNRECOGNIZED`, fails closed). `guardread`
   refuses all of them. `fingerprint` reports them as `unsupported-kind`.
 - Scan reports include the `profile` used (JSON field and text header).
+- Files larger than the 32 KiB inspection prefix are classified on their full
+  content (bounded by `--max-file-size`) when that content is an agent key
+  file. A failed read reports `SCAN-READ-ERROR`.
 
 ### Changed
 

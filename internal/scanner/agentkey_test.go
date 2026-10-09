@@ -256,7 +256,7 @@ func TestScanFindsPlainAgentKeyOutsideKeyDir(t *testing.T) {
 	}
 }
 
-func TestAgentKeyAdversarialInputsFailClosed(t *testing.T) {
+func TestAgentKeyEncodingAndLayoutVariants(t *testing.T) {
 	stub := syntheticAdvancedKey(agentKeyTokenShadowed, "(shadowed t1-v1 #00#)")
 	plain := "(" + agentKeyTokenPlain + " (ecc (d #00#)))"
 	cases := []struct {

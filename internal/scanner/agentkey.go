@@ -244,8 +244,7 @@ func agentKeyFormForSexp(expr []byte) agentKeyForm {
 		}
 		return agentKeyFormUnrecognized
 	}
-	// A key holds exactly one expression. Anything after it could hide a
-	// second key behind a benign first one.
+	// A key holds exactly one expression; trailing content is unrecognized.
 	if len(bytes.TrimSpace(expr[end:])) != 0 {
 		if outer == agentKeyFormPlain {
 			return agentKeyFormPlain
