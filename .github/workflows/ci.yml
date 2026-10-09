@@ -27,12 +27,23 @@ jobs:
     env:
       # CI-only boundary hint for gofulmen/pathfinder repo-root discovery
       FULMEN_WORKSPACE_ROOT: ${{ github.workspace }}
+      DECERNOR_SYNTHCORPUS_ROOT: ${{ github.workspace }}/synthcorpus
+      # Must equal the commit in testdata/synthcorpus.pin; the test harness
+      # fails if the checkout does not match the pin.
+      SYNTHCORPUS_COMMIT: e91cbc966b226af07e05be0ffb95b26f8c51563c
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Checkout fixture corpus (pinned)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          repository: 3leaps/synthcorpus
+          ref: ${{ env.SYNTHCORPUS_COMMIT }}
+          path: synthcorpus
+          persist-credentials: false
       - name: Setup (temp perms + git safe.directory)
         run: |
           set -euo pipefail
@@ -43,6 +54,7 @@ jobs:
           # Avoid git "dubious ownership" on the container-owned checkout, which
           # breaks Go VCS stamping and any `git` call in the Makefile.
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}/synthcorpus"
       - name: Verify toolchain (no installs)
         run: |
           set -euo pipefail

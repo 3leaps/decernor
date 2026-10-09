@@ -847,28 +847,3 @@ func recordsByScheme(records []Record) map[Scheme]Record {
 	}
 	return out
 }
-
-func TestRunGPGAgentShadowStubIsUnsupportedKind(t *testing.T) {
-	// Agent key files have no OpenPGP packet form; a stub must not reach the
-	// gpg helper or yield a fingerprint.
-	dir := t.TempDir()
-	stub := "Key: (shadowed-private-key (ecc (curve Ed25519)(q #00#)(shadowed t1-v1 (#00# OPENPGP.1))))\n"
-	mustWrite(t, filepath.Join(dir, "stub.key"), stub)
-
-	result, err := Run(context.Background(), []string{dir}, Config{
-		Kinds: map[scanner.ArtifactKind]bool{scanner.ArtifactKindGPG: true},
-	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(result.Records) != 1 {
-		t.Fatalf("records=%#v", result.Records)
-	}
-	record := result.Records[0]
-	if record.Kind != scanner.ArtifactKindGPG || record.Class != scanner.ArtifactClassOther {
-		t.Fatalf("kind/class = %s/%s", record.Kind, record.Class)
-	}
-	if record.Fingerprint != nil || record.Reason != scanner.ArtifactReasonUnsupportedKind {
-		t.Fatalf("fingerprint=%#v reason=%q", record.Fingerprint, record.Reason)
-	}
-}

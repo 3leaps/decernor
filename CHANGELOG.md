@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Agent key classification tests consume specimens and expected verdicts
+  from the pinned external fixture corpus. CI checks it out at the pinned
+  commit.
 - `--profile workstation` now takes effect: GnuPG home internals are info
   rather than unsafe. Secret verdicts are identical in both profiles.
 - Keyring-internal directories are no longer skipped or reported as secret

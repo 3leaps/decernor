@@ -191,28 +191,6 @@ func testPrivateMarker() string {
 	return "-----" + strings.Join([]string{"BEGIN", "OPENSSH", "PRIVATE", "KEY"}, " ") + "-----"
 }
 
-func TestReadFileGnuPGAgentKeysRefuseWithoutContent(t *testing.T) {
-	// Synthetic agent key bodies with placeholder parameters, built at runtime.
-	plain := "Key: (" + "private" + "-key (ecc (curve Ed25519)(q #00#)(d #00#)))\n"
-	protected := "Key: (protected-private-key (ecc (curve Ed25519)(q #00#)(protected x #00#)))\n"
-	shadowed := "Key: (shadowed-private-key (ecc (curve Ed25519)(q #00#)(shadowed t1-v1 #00#)))\n"
-	for name, body := range map[string]string{"plain": plain, "protected": protected, "shadowed": shadowed} {
-		t.Run(name, func(t *testing.T) {
-			path := writeTestFile(t, name+".txt", []byte(body))
-			result, err := ReadFile(context.Background(), path, Config{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if result.Verdict != VerdictRefuse || result.Reason != ReasonKeyMaterialDetected {
-				t.Fatalf("result = %#v", result)
-			}
-			if len(result.Content) != 0 {
-				t.Fatalf("refusal content length = %d", len(result.Content))
-			}
-		})
-	}
-}
-
 func TestReadFileYAMLKeyLinePasses(t *testing.T) {
 	path := writeTestFile(t, "config.yaml", []byte("key: value\nname: example\n"))
 	result, err := ReadFile(context.Background(), path, Config{})
