@@ -359,3 +359,14 @@ func TestAgentKeyMidTokenContinuationJoinsWithoutSeparator(t *testing.T) {
 		t.Fatalf("form = %q, want plaintext", got)
 	}
 }
+
+func TestAgentKeyContinuationSpaceRule(t *testing.T) {
+	// One leading space concatenates; extra leading spaces are content.
+	if got := agentKeyFormFor([]byte("Key: (private-\n key (ecc (d #00#)))\n")); got != agentKeyFormPlain {
+		t.Fatalf("single-space join: form = %q, want plaintext", got)
+	}
+	stub := "Key: (" + agentKeyTokenShadowed + "\n  (ecc (q #00#)\n  (shadowed t1-v1 #00#)))\n"
+	if got := agentKeyFormFor([]byte(stub)); got != agentKeyFormShadowed {
+		t.Fatalf("two-space continuation: form = %q, want shadowed", got)
+	}
+}

@@ -339,8 +339,9 @@ func extendedKeyItems(data []byte) ([][]byte, bool) {
 				return nil, false
 			}
 			if current != nil {
-				// GnuPG joins continuation lines without a separator.
-				current.Write(bytes.TrimLeft(line, " \t"))
+				// GnuPG keyformat: the first leading space only marks the
+				// continuation; any further leading whitespace is content.
+				current.Write(line[1:])
 			}
 			continue
 		}
