@@ -121,6 +121,9 @@ func checkClassInvariants(t *testing.T, profile, class string, own []scanFinding
 			t.Errorf("%s: class %s not unsafe: %v", profile, class, own)
 		}
 	case "hardware-stub":
+		if len(own) == 0 {
+			t.Errorf("%s: hardware stub produced no finding", profile)
+		}
 		for _, f := range own {
 			if f.Exposure == "secret" {
 				t.Errorf("%s: hardware stub reported secret exposure", profile)
