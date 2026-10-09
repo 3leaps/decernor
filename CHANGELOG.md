@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- GnuPG agent key files (`private-keys-v1.d/*.key`, extended and legacy
+  formats) are classified by content: plaintext (`GPG-AGENT-UNPROTECTED-KEY`),
+  passphrase-protected (`GPG-AGENT-PROTECTED-KEY`), hardware shadow stub
+  (`GPG-AGENT-SHADOWED-KEY`, new classification `hardware-stub`), or
+  unrecognized (`GPG-AGENT-KEY-UNRECOGNIZED`, fails closed). `guardread`
+  refuses all of them. `fingerprint` reports them as `unsupported-kind`.
+- Scan reports include the `profile` used (JSON field and text header).
+
+### Changed
+
+- `--profile workstation` now takes effect: GnuPG home internals are info
+  rather than unsafe. Secret verdicts are identical in both profiles.
+- Keyring-internal directories are no longer skipped or reported as secret
+  by name. The scan descends into them and classifies each file. The
+  directory finding is `sensitive`, and in the default profile it is P2.
+- The legacy `secring.gpg` reports as `GPG-KEYRING-SECRET-FILE` (unsafe in
+  both profiles).
+
 ## [0.1.8] - 2026-09-24
 
 Public signing-anchor verification release. Dependencies and committed signing

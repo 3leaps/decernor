@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -69,5 +70,7 @@ func committedFixtureForbiddenMarkers() []string {
 		strings.ToUpper(minisignEncryptedSecretMarker()),
 		strings.ToUpper(minisignSecretMarker()),
 		strings.ToUpper(openSSHMagic),
+		strings.ToUpper("(" + agentKeyTokenPlain + " "),
+		strings.ToUpper(fmt.Sprintf("(%d:%s", len(agentKeyTokenPlain), agentKeyTokenPlain)),
 	}
 }

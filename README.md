@@ -65,6 +65,23 @@ go run ./cmd/decernor --log-level info scan /path/to/artifacts --format json
 
 Scan reports are written to stdout. Operational logs are written to stderr when enabled with `--log-level info`, so CI can safely pipe JSON reports without log contamination.
 
+`--profile` sets the posture. `artifact` (the default) treats a folder as
+something that may be shipped or shared, so copied GnuPG keyring internals are
+unsafe. `workstation` treats it as a live home, where those internals are
+expected and reported as info. GnuPG agent key files are classified by content
+in both profiles:
+
+| Agent key form                         | Finding                                    | `artifact` | `workstation` |
+| -------------------------------------- | ------------------------------------------ | ---------- | ------------- |
+| Plaintext private key                  | `GPG-AGENT-UNPROTECTED-KEY`                | unsafe     | unsafe        |
+| Passphrase-protected                   | `GPG-AGENT-PROTECTED-KEY`                  | warn       | warn          |
+| Hardware shadow stub (smartcard/TPM)   | `GPG-AGENT-SHADOWED-KEY` (`hardware-stub`) | warn       | info          |
+| Unrecognized under `private-keys-v1.d` | `GPG-AGENT-KEY-UNRECOGNIZED`               | unsafe     | unsafe        |
+
+A shadow stub holds no private key, but it names the token and key, so it
+is `sensitive`. The profile never softens a secret verdict. JSON reports
+include the `profile` used.
+
 ### Guardread
 
 `guardread` answers:
@@ -216,7 +233,7 @@ Example:
 - Public keys and signatures are not private, but may still be operationally relevant.
 - Passphrase-protected software keys are sensitive and potentially retainable with controls.
 - Plaintext private keys are unsafe.
-- Copied keyring internals are suspicious outside their expected home.
+- Copied keyring internals are suspicious outside their expected home; agent key files are judged by content, not by directory name.
 - Revocation certificates are operationally sensitive and should be archived intentionally.
 - Hardware-backed keys should be preferred or required where policy calls for that.
 - The tool should not decrypt user data, collect passphrases, or print private key material.

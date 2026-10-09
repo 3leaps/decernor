@@ -41,6 +41,7 @@ The scanner currently handles:
 - Minisign secret material markers and common secret-key filenames.
 - Generic PEM private-key headers.
 - Copied GPG keyring internals such as `.gnupg`, `private-keys-v1.d`, and trust/keybox files.
+- GnuPG agent key files classified by content: plaintext, passphrase-protected, or hardware shadow stub.
 
 Findings include stable code, priority, severity, classification, retention, exposure, sensitivity, confidence, evidence, and recommendation fields.
 

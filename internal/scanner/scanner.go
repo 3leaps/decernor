@@ -34,6 +34,7 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 
 	result := Result{
 		Root:      root,
+		Profile:   cfg.Profile,
 		Findings:  []Finding{},
 		StartedAt: time.Now().UTC(),
 	}
@@ -60,12 +61,20 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 		}
 
 		if cfg.EnableGPG {
-			if artifact, ok := keyringInternalArtifact(path, entry.IsDir()); ok {
+			if artifact, ok := keyringInternalArtifact(path, entry.IsDir(), cfg.Profile); ok {
 				result.AddFinding(artifact.Finding())
-				if entry.IsDir() {
-					return filepath.SkipDir
+				if !entry.IsDir() {
+					// A name-matched file is still checked by content, so a
+					// lenient profile cannot clear key material by name.
+					// Packet listing is skipped: keyring databases are not
+					// OpenPGP packet streams.
+					if artifact.Classification == ClassKeyringInternal && artifact.Finding().Code != "GPG-KEYRING-SECRET-FILE" {
+						if content, ok := classifyKeyringFileContent(path, cfg); ok {
+							result.AddFinding(content.Finding())
+						}
+					}
+					return nil
 				}
-				return nil
 			}
 		}
 
@@ -126,6 +135,15 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 				Recommendation: "Verify file permissions and rerun the scan.",
 			})
 			return nil
+		}
+
+		// An agent key judged on a prefix could hide a second key past it;
+		// classify such files on their full (size-bounded) content.
+		if cfg.EnableGPG && info.Size() > int64(len(prefix)) && (isAgentKeyPath(path) || agentKeyFormFor(prefix) != agentKeyFormNone) {
+			full, err := readBounded(path, cfg.MaxFileSize)
+			if err == nil {
+				prefix = full
+			}
 		}
 
 		if cfg.EnableGPG && looksOpenPGP(path, prefix) {
@@ -228,4 +246,24 @@ func readPrefix(path string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	return buf[:n], nil
+}
+
+func classifyKeyringFileContent(path string, cfg Config) (Artifact, bool) {
+	data, err := readBounded(path, cfg.MaxFileSize)
+	if err != nil {
+		return Artifact{}, false
+	}
+	return classifyHeaderArtifact(path, data, cfg)
+}
+
+// readBounded reads at most limit bytes without preallocating the limit.
+func readBounded(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	return io.ReadAll(io.LimitReader(file, limit))
 }

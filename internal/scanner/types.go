@@ -25,6 +25,7 @@ type Classification string
 
 const (
 	ClassEncrypted       Classification = "encrypted"
+	ClassHardwareStub    Classification = "hardware-stub"
 	ClassKeyringInternal Classification = "keyring-internal"
 	ClassMinisignSecret  Classification = "minisign-secret"
 	ClassParseError      Classification = "parse-error"
@@ -96,6 +97,7 @@ type Config struct {
 
 type Result struct {
 	Root      string    `json:"root"`
+	Profile   Profile   `json:"profile"`
 	Scanned   int       `json:"scanned"`
 	Skipped   int       `json:"skipped"`
 	Findings  []Finding `json:"findings"`

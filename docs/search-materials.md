@@ -1,6 +1,6 @@
 # Search Materials
 
-Decernor detects key-material artifacts using a deliberately small local corpus of packet markers, armor headers, filename patterns, and keyring-internal names.
+Decernor detects key-material artifacts using a deliberately small local corpus of packet markers, armor headers, filename patterns, keyring-internal names, and GnuPG agent key S-expression tokens.
 
 ## Corpus Location
 
@@ -24,6 +24,7 @@ Keep detector strings and filename lists in `corpus.go` unless a value is purely
 
 - `TestCommittedFixturesContainNoPrivateKeyMaterial` scans committed docs/examples/schemas/tests for private-material markers.
 - Scanner tests construct OpenPGP/OpenSSH/minisign-looking content at runtime rather than storing key fixture files.
+- Agent key tests build S-expressions at runtime from corpus tokens with placeholder parameters; the hygiene test rejects committed plaintext agent key tokens.
 - `find . -type f` should not show committed `.asc`, `.gpg`, `.kbx`, `.pem`, `.key`, `.minisig`, or `.sig` fixture files unless a reviewed exception is documented.
 
 ## Review Checklist
