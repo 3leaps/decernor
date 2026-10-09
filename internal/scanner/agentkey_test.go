@@ -370,3 +370,16 @@ func TestAgentKeyContinuationSpaceRule(t *testing.T) {
 		t.Fatalf("two-space continuation: form = %q, want shadowed", got)
 	}
 }
+
+func TestScanWrappedAgentKeyPastPrefixOffKeyPath(t *testing.T) {
+	dir := t.TempDir()
+	prelude := strings.Repeat("# innocuous comment line for prefix test\n", 2*prefixBytes/40)
+	mustWrite(t, filepath.Join(dir, "notes.txt"), prelude+"Key: (private-\n key (ecc (d #00#)))\n")
+	result, err := scanWithPacketLister(context.Background(), dir, Config{Profile: ProfileWorkstation}, fakePacketLister{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Unsafes != 1 {
+		t.Fatalf("unsafes=%d findings=%#v", result.Unsafes, result.Findings)
+	}
+}

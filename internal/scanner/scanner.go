@@ -138,8 +138,8 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 		}
 
 		// A file larger than the prefix could hide an agent key past it.
-		// Classify on full (size-bounded) content when the path or prefix
-		// says agent key, or when an agent-key token appears anywhere.
+		// Classify on full (size-bounded) content when the path or the full
+		// content says agent key.
 		if cfg.EnableGPG && info.Size() > int64(len(prefix)) {
 			full, err := readBounded(path, cfg.MaxFileSize)
 			if err != nil {
@@ -157,7 +157,9 @@ func scanWithPacketLister(ctx context.Context, root string, cfg Config, lister p
 				})
 				return nil
 			}
-			if isAgentKeyPath(path) || agentKeyFormFor(prefix) != agentKeyFormNone || agentKeyTokenCount(full) > 0 {
+			// Classify the full bytes, not a raw token search, so a token
+			// wrapped across continuation lines is still found.
+			if isAgentKeyPath(path) || agentKeyFormFor(full) != agentKeyFormNone {
 				prefix = full
 			}
 		}
