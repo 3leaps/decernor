@@ -211,7 +211,7 @@ version-bump-patch:  ## Bump patch version
 	@echo "✅ Version bumped to $$(cat VERSION)"
 
 release-notes-check:  ## Verify VERSION, identity yaml, and notes files for this cut
-	@set -euo pipefail; \
+	@set -eu; \
 	V=$$(tr -d ' \n' < VERSION); \
 	YAML_V=$$(sed -n 's/^  version: "\(.*\)"/\1/p' $(EMBEDDED_IDENTITY_SRC) | head -1); \
 	if [ -z "$$V" ]; then echo "❌ VERSION is empty"; exit 1; fi; \

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-12
+
+GnuPG agent key classification release. A hardware-backed GnuPG home no longer
+reports its shadow stubs as plaintext secret keys.
+
 ### Added
 
 - GnuPG agent key files (`private-keys-v1.d/*.key`, extended and legacy
@@ -192,6 +197,7 @@ shape for that cut.
 - Upstream baseline changelog and release-note history inherited from the
   template.
 
+[0.1.9]: https://github.com/3leaps/decernor/releases/tag/v0.1.9
 [0.1.8]: https://github.com/3leaps/decernor/releases/tag/v0.1.8
 [0.1.7]: https://github.com/3leaps/decernor/releases/tag/v0.1.7
 [0.1.6]: https://github.com/3leaps/decernor/releases/tag/v0.1.6

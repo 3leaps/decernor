@@ -280,7 +280,7 @@ Inserter: [`keys/README.md`](keys/README.md).
 ## Verify a signed release
 
 Consume fingerprints, not secrets. Per-cut commands live in
-[`docs/releases/v0.1.8.md`](docs/releases/v0.1.8.md).
+[`docs/releases/v0.1.9.md`](docs/releases/v0.1.9.md).
 
 Start with an independently trusted anchor pair, such as pins already committed
 in your consuming repository, and an already-trusted Decernor installation.
