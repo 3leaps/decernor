@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   directory finding is `sensitive`, and in the default profile it is P2.
 - The legacy `secring.gpg` reports as `GPG-KEYRING-SECRET-FILE` (unsafe in
   both profiles).
+- The minimum Go version is 1.26.9. CI and Release use the digest-pinned
+  `goneat-tools-runner-glibc:v0.5.8` (Go 1.26.9, Goneat v0.6.2).
 
 ## [0.1.8] - 2026-09-24
 

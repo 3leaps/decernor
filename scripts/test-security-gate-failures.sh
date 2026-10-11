@@ -41,7 +41,7 @@ set -euo pipefail
 printf 'go %s\n' "$*" >>"$SECURITY_GATE_TEST_LOG"
 case "${1:-}" in
 version)
-    echo 'go version go1.26.6 test/arch'
+    echo 'go version go1.26.9 test/arch'
     ;;
 install)
     if [ "${FAIL_GATE:-}" = 'prepare' ]; then
@@ -90,8 +90,8 @@ cat >"$MOCK_BIN/goneat" <<'EOF'
 set -euo pipefail
 printf 'goneat %s\n' "$*" >>"$SECURITY_GATE_TEST_LOG"
 if [ "${1:-}" = 'version' ]; then
-    echo 'goneat v0.6.0'
-    echo 'Module: v0.6.0'
+    echo 'goneat v0.6.2'
+    echo 'Module: v0.6.2'
 elif [ "${FAIL_GATE:-}" = 'license' ]; then
     exit 76
 elif [ "${1:-}" = 'dependencies' ]; then

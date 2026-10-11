@@ -49,14 +49,14 @@ report = {
 json.dump(report, open(sys.argv[2], "w", encoding="utf-8"), indent=2)
 PY
 
-DECERNOR_GONEAT_VERSION=v0.6.0 "$VERIFY" "$WORK/report.json" "$BASELINE" >/dev/null
+DECERNOR_GONEAT_VERSION=v0.6.2 "$VERIFY" "$WORK/report.json" "$BASELINE" >/dev/null
 echo '[ok] complete graph and exact known degradation accepted'
 
 expect_rejected() {
     local name=$1
     local report=$2
     local baseline=${3:-$BASELINE}
-    local goneat_version=${DECERNOR_GONEAT_VERSION:-v0.6.0}
+    local goneat_version=${DECERNOR_GONEAT_VERSION:-v0.6.2}
     if DECERNOR_GONEAT_VERSION="$goneat_version" "$VERIFY" "$report" "$baseline" >/dev/null 2>&1; then
         echo "error: accepted license mutation: $name" >&2
         exit 1
@@ -70,7 +70,7 @@ expect_rejected 'degraded report with missing runtime module' "$WORK/missing-run
 jq '.Issues[0].Message = "different detector failure"' "$WORK/report.json" >"$WORK/unexpected-issue.json"
 expect_rejected 'unexpected issue identity' "$WORK/unexpected-issue.json"
 
-jq '(.Dependencies[] | select(.Name == "github.com/google/uuid")).License.Type = "BSD-3-Clause"' \
+jq '(.Dependencies[] | select(.Name == "github.com/google/uuid")).License.Type = "ISC"' \
     "$WORK/report.json" >"$WORK/unlisted-classifier.json"
 expect_rejected 'unlisted classifier value' "$WORK/unlisted-classifier.json"
 
@@ -89,9 +89,14 @@ expect_rejected 'disallowed license' "$WORK/report.json" "$WORK/disallowed.json"
 jq '.modules[0].license = ""' "$BASELINE" >"$WORK/empty.json"
 expect_rejected 'empty license' "$WORK/report.json" "$WORK/empty.json"
 
+jq '(.modules[] | select(.path == "github.com/google/uuid")).goneat = {"version": "v0.6.2", "license": "BSD-3-Clause"}' \
+    "$BASELINE" >"$WORK/aliased.json"
+DECERNOR_GONEAT_VERSION=v0.6.2 "$VERIFY" "$WORK/report.json" "$WORK/aliased.json" >/dev/null
+echo '[ok] pinned classifier alias accepted'
+
 jq '(.modules[] | select(.path == "github.com/google/uuid")).goneat.license = "GPL-3.0"' \
-    "$BASELINE" >"$WORK/disallowed-alias.json"
+    "$WORK/aliased.json" >"$WORK/disallowed-alias.json"
 expect_rejected 'disallowed classifier alias' "$WORK/report.json" "$WORK/disallowed-alias.json"
 
 DECERNOR_GONEAT_VERSION=v0.6.1 expect_rejected \
-    'detector upgrade invalidates aliases' "$WORK/report.json"
+    'detector upgrade invalidates aliases' "$WORK/report.json" "$WORK/aliased.json"
