@@ -83,6 +83,8 @@ func Load() (Corpus, error) {
 	if root == "" {
 		root = filepath.Join(filepath.Dir(repo), "synthcorpus")
 	}
+	// #nosec G703 -- the corpus root is the operator's own checkout; its
+	// contents are verified against the pin below.
 	if st, err := os.Stat(root); err != nil || !st.IsDir() {
 		return Corpus{}, fmt.Errorf("fixture corpus not found at %s (set %s): key-shaped tests cannot run without it", root, RootEnv)
 	}
@@ -96,7 +98,10 @@ func Load() (Corpus, error) {
 			return Corpus{}, fmt.Errorf("corpus at %s is %s, pin requires %s (set %s=1 for a non-evidence exploratory run)", root, head, pin.Commit, UnpinnedEnv)
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(pin.Manifest)))
+	if !filepath.IsLocal(filepath.FromSlash(pin.Manifest)) {
+		return Corpus{}, fmt.Errorf("pin manifest path %q must stay inside the corpus", pin.Manifest)
+	}
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(pin.Manifest))) // #nosec G703 -- local path under the corpus root, checked above.
 	if err != nil {
 		return Corpus{}, err
 	}
@@ -114,8 +119,11 @@ func Load() (Corpus, error) {
 	if err := validateVocabulary(m); err != nil {
 		return Corpus{}, err
 	}
+	if err := validatePaths(m); err != nil {
+		return Corpus{}, err
+	}
 	for rel, f := range m.Fixtures {
-		body, err := os.ReadFile(filepath.Join(root, m.FixturesRoot, filepath.FromSlash(rel)))
+		body, err := os.ReadFile(filepath.Join(root, m.FixturesRoot, filepath.FromSlash(rel))) // #nosec G703 -- local paths under the corpus root, checked by validatePaths.
 		if err != nil {
 			return Corpus{}, err
 		}
@@ -172,7 +180,7 @@ func readPin(path string) (Pin, error) {
 }
 
 func gitHead(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G702 -- fixed argv, no shell; dir is the corpus root.
 	if err != nil {
 		return "", err
 	}
@@ -250,6 +258,20 @@ func validateVocabulary(m Manifest) error {
 					return fmt.Errorf("%s: %s names unsupported profile %q", rel, e.Code, profile)
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// validatePaths keeps every manifest path inside the corpus checkout, so an
+// unpinned run cannot read outside it.
+func validatePaths(m Manifest) error {
+	if !filepath.IsLocal(filepath.FromSlash(m.FixturesRoot)) {
+		return fmt.Errorf("fixtures_root %q must stay inside the corpus", m.FixturesRoot)
+	}
+	for rel := range m.Fixtures {
+		if !filepath.IsLocal(filepath.FromSlash(rel)) {
+			return fmt.Errorf("fixture path %q must stay inside the corpus", rel)
 		}
 	}
 	return nil
