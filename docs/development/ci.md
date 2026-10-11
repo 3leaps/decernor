@@ -1,8 +1,8 @@
 # CI
 
 Decernor uses GitHub Actions with the Fulmen goneat toolbox runner image
-(`ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.6`, pinned by digest;
-Go `1.26.6`, Goneat module `v0.6.0`).
+(`ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.8`, pinned by digest;
+Go `1.26.9`, Goneat module `v0.6.2`).
 
 The CI workflow currently verifies:
 
@@ -25,7 +25,8 @@ License verification has two explicit scopes. The committed
 `.goneat/license-baseline.json` must exactly match `go list -m all`, including
 test-only and graph modules, and every entry must name an allowed license.
 Goneat's report is then reconciled exactly against the narrower runtime package
-set from `go list -deps ./...`. Goneat v0.6.0's known Go 1.26 standard-library
-metadata degradation is accepted only after both coverage checks pass. The
-three reviewed classifier aliases in the baseline are pinned to exact module
-and Goneat versions, so dependency or detector changes require review.
+set from `go list -deps ./...`. A known Go 1.26 standard-library metadata
+degradation in Goneat's report is accepted only after both coverage checks
+pass. A baseline entry may carry a reviewed classifier alias; aliases are
+pinned to exact module and Goneat versions, so dependency or detector changes
+require review.

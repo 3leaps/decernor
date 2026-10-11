@@ -26,7 +26,7 @@ cat >"$BIN/goneat" <<'EOF'
 set -euo pipefail
 printf 'goneat %s\n' "$*" >>"$BOOTSTRAP_TEST_LOG"
 if [ "${1:-}" = '--version' ]; then
-    echo 'goneat v0.6.0'
+    echo 'goneat v0.6.2'
     exit 0
 fi
 if [ "${1:-}" = 'doctor' ]; then

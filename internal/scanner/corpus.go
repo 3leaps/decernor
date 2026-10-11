@@ -7,6 +7,15 @@ import "strings"
 const (
 	protectedPacketMarker = "[v4 protected]"
 	openSSHMagic          = "openssh-key-v1\x00"
+
+	// GnuPG agent key files (private-keys-v1.d/*.key) carry an S-expression
+	// whose outer token says whether the secret is plaintext, passphrase
+	// protected, or a shadow stub pointing at a smartcard or TPM.
+	gpgAgentPrivateDir      = "private-keys-v1.d"
+	agentKeyExtendedKeyItem = "key"
+	agentKeyTokenPlain      = "private-key"
+	agentKeyTokenProtected  = "protected-private-key"
+	agentKeyTokenShadowed   = "shadowed-private-key"
 )
 
 var (
@@ -38,12 +47,25 @@ var (
 		".pgp": {},
 		".sig": {},
 	}
+	// Secret parameters per public-key algorithm. A shadow stub or a
+	// protected key must never carry one of these as a plain list.
+	agentKeySecretParams = map[string]map[string]struct{}{
+		"rsa":   {"d": {}, "p": {}, "q": {}, "u": {}},
+		"dsa":   {"x": {}},
+		"elg":   {"x": {}},
+		"ecc":   {"d": {}},
+		"ecdsa": {"d": {}},
+		"eddsa": {"d": {}},
+		"ecdh":  {"d": {}},
+	}
 	keyringInternalDirs = map[string]struct{}{
 		".gnupg":            {},
 		"private-keys-v1.d": {},
 	}
+	keyringSecretFiles = map[string]struct{}{
+		"secring.gpg": {},
+	}
 	keyringInternalFiles = map[string]struct{}{
-		"secring.gpg":    {},
 		"pubring.kbx":    {},
 		"trustdb.gpg":    {},
 		"gpg-agent.conf": {},

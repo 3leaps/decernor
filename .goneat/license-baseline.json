@@ -53,11 +53,7 @@
     {
       "path": "github.com/google/uuid",
       "version": "v1.6.0",
-      "license": "BSD-3-Clause",
-      "goneat": {
-        "version": "v0.6.0",
-        "license": "ISC"
-      }
+      "license": "BSD-3-Clause"
     },
     {
       "path": "github.com/inconshreveable/mousetrap",
@@ -102,11 +98,7 @@
     {
       "path": "github.com/spf13/pflag",
       "version": "v1.0.10",
-      "license": "BSD-3-Clause",
-      "goneat": {
-        "version": "v0.6.0",
-        "license": "ISC"
-      }
+      "license": "BSD-3-Clause"
     },
     {
       "path": "github.com/stretchr/testify",
@@ -161,11 +153,7 @@
     {
       "path": "golang.org/x/time",
       "version": "v0.15.0",
-      "license": "BSD-3-Clause",
-      "goneat": {
-        "version": "v0.6.0",
-        "license": "ISC"
-      }
+      "license": "BSD-3-Clause"
     },
     {
       "path": "gopkg.in/check.v1",
@@ -180,7 +168,11 @@
     {
       "path": "gopkg.in/yaml.v3",
       "version": "v3.0.1",
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "goneat": {
+        "version": "v0.6.2",
+        "license": "MIT"
+      }
     }
   ]
 }

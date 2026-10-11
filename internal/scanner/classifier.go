@@ -103,6 +103,12 @@ func classifyPacketArtifact(path string, packets string, allowProtected bool) (A
 }
 
 func classifyHeaderArtifact(path string, prefix []byte, cfg Config) (Artifact, bool) {
+	if cfg.EnableGPG {
+		if artifact, ok := classifyAgentKeyArtifact(path, prefix, cfg); ok {
+			return artifact, true
+		}
+	}
+
 	if cfg.EnableGPG && isRevocationPath(path) && containsASCII(prefix, pgpPublicHeader()) {
 		return mustArtifact(Finding{
 			Path:           path,
@@ -581,24 +587,74 @@ func containsAny(haystack string, needles []string) bool {
 	return false
 }
 
-func keyringInternalArtifact(path string, isDir bool) (Artifact, bool) {
+// keyringInternalArtifact flags GnuPG home internals by name. Names alone are
+// not evidence of secret material: key files inside these directories are
+// classified individually by content. The profile decides whether internals
+// are expected (a live workstation home) or copied into an artifact.
+func keyringInternalArtifact(path string, isDir bool, profile Profile) (Artifact, bool) {
 	name := filepath.Base(path)
+	workstation := profile == ProfileWorkstation
 	if _, ok := keyringInternalDirs[name]; isDir && ok {
+		if workstation {
+			return mustArtifact(Finding{
+				Path:           path,
+				Code:           "GPG-KEYRING-INTERNAL-DIR",
+				Priority:       PriorityP5,
+				Classification: ClassKeyringInternal,
+				Severity:       SeverityInfo,
+				Retention:      RetentionRetainControlled,
+				Exposure:       ExposureSensitive,
+				Confidence:     ConfidenceMedium,
+				Evidence:       "GPG keyring internal directory detected; key files classified individually",
+				Recommendation: "Expected in a live GnuPG home; keep it out of artifacts and backups without controls.",
+			})
+		}
 		return mustArtifact(Finding{
 			Path:           path,
 			Code:           "GPG-KEYRING-INTERNAL-DIR",
+			Priority:       PriorityP2,
+			Classification: ClassKeyringInternal,
+			Severity:       SeverityUnsafe,
+			Retention:      RetentionRemove,
+			Exposure:       ExposureSensitive,
+			Confidence:     ConfidenceMedium,
+			Evidence:       "GPG keyring internal directory detected; key files classified individually",
+			Recommendation: "Do not ship copied keyring internals; export only approved artifacts. If this path is a live GnuPG home, rerun with --profile workstation.",
+		})
+	}
+
+	if isDir {
+		return Artifact{}, false
+	}
+	if _, ok := keyringSecretFiles[name]; ok {
+		return mustArtifact(Finding{
+			Path:           path,
+			Code:           "GPG-KEYRING-SECRET-FILE",
 			Priority:       PriorityP1,
 			Classification: ClassKeyringInternal,
 			Severity:       SeverityUnsafe,
 			Retention:      RetentionRemove,
 			Exposure:       ExposureSecret,
-			Confidence:     ConfidenceHigh,
-			Evidence:       "GPG keyring internal directory detected",
-			Recommendation: "Do not ship copied keyring internals; export only approved artifacts.",
+			Confidence:     ConfidenceMedium,
+			Evidence:       "legacy GnuPG secret keyring file detected",
+			Recommendation: "Migrate keys to the agent store or hardware and remove the legacy secret keyring.",
 		})
 	}
-
 	if _, ok := keyringInternalFiles[name]; ok {
+		if workstation {
+			return mustArtifact(Finding{
+				Path:           path,
+				Code:           "GPG-KEYRING-INTERNAL-FILE",
+				Priority:       PriorityP5,
+				Classification: ClassKeyringInternal,
+				Severity:       SeverityInfo,
+				Retention:      RetentionRetainControlled,
+				Exposure:       ExposureSensitive,
+				Confidence:     ConfidenceHigh,
+				Evidence:       "GPG keyring internal file detected",
+				Recommendation: "Expected in a live GnuPG home.",
+			})
+		}
 		return mustArtifact(Finding{
 			Path:           path,
 			Code:           "GPG-KEYRING-INTERNAL-FILE",
@@ -609,7 +665,7 @@ func keyringInternalArtifact(path string, isDir bool) (Artifact, bool) {
 			Exposure:       ExposureSensitive,
 			Confidence:     ConfidenceHigh,
 			Evidence:       "GPG keyring internal file detected",
-			Recommendation: "Remove copied keyring internals from the artifact folder.",
+			Recommendation: "Remove copied keyring internals from the artifact folder. If this path is a live GnuPG home, rerun with --profile workstation.",
 		})
 	}
 	return Artifact{}, false

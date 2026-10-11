@@ -190,3 +190,14 @@ func writeTestFile(t *testing.T, name string, data []byte) string {
 func testPrivateMarker() string {
 	return "-----" + strings.Join([]string{"BEGIN", "OPENSSH", "PRIVATE", "KEY"}, " ") + "-----"
 }
+
+func TestReadFileYAMLKeyLinePasses(t *testing.T) {
+	path := writeTestFile(t, "config.yaml", []byte("key: value\nname: example\n"))
+	result, err := ReadFile(context.Background(), path, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Verdict != VerdictPass {
+		t.Fatalf("verdict = %s", result.Verdict)
+	}
+}

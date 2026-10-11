@@ -83,7 +83,7 @@ func artifactKindForFinding(f Finding) (ArtifactKind, bool) {
 		if hasCodePrefix(f.Code, "GPG-") {
 			return ArtifactKindGPG, true
 		}
-	case ClassEncrypted, ClassKeyringInternal, ClassProtectedSecret, ClassPublic, ClassRevocation, ClassUnsafeSecret:
+	case ClassEncrypted, ClassHardwareStub, ClassKeyringInternal, ClassProtectedSecret, ClassPublic, ClassRevocation, ClassUnsafeSecret:
 		if hasCodePrefix(f.Code, "MINISIGN-") {
 			return ArtifactKindMinisign, true
 		}
@@ -96,7 +96,7 @@ func artifactClassForFinding(f Finding) ArtifactClass {
 	switch f.Classification {
 	case ClassPublic:
 		return ArtifactClassPublic
-	case ClassEncrypted, ClassKeyringInternal, ClassRevocation:
+	case ClassEncrypted, ClassHardwareStub, ClassKeyringInternal, ClassRevocation:
 		return ArtifactClassOther
 	default:
 		if f.Exposure == ExposurePublic {
@@ -110,8 +110,12 @@ func artifactClassForFinding(f Finding) ArtifactClass {
 }
 
 func artifactReasonForFinding(f Finding) ArtifactReason {
+	// GnuPG agent key files have no OpenPGP packet form to fingerprint.
+	if hasCodePrefix(f.Code, "GPG-AGENT-") {
+		return ArtifactReasonUnsupportedKind
+	}
 	switch f.Classification {
-	case ClassEncrypted, ClassKeyringInternal, ClassRevocation:
+	case ClassEncrypted, ClassHardwareStub, ClassKeyringInternal, ClassRevocation:
 		return ArtifactReasonUnsupportedKind
 	case ClassParseError:
 		return ArtifactReasonParseUnsupported

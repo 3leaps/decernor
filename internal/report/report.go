@@ -24,7 +24,7 @@ func WriteText(w io.Writer, result scanner.Result) error {
 		return findings[i].Path < findings[j].Path
 	})
 
-	if _, err := fmt.Fprintf(w, "scanned=%d skipped=%d warns=%d unsafes=%d root=%s\n", result.Scanned, result.Skipped, result.Warns, result.Unsafes, result.Root); err != nil {
+	if _, err := fmt.Fprintf(w, "scanned=%d skipped=%d warns=%d unsafes=%d profile=%s root=%s\n", result.Scanned, result.Skipped, result.Warns, result.Unsafes, result.Profile, result.Root); err != nil {
 		return err
 	}
 	if len(findings) == 0 {

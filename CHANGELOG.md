@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- GnuPG agent key files (`private-keys-v1.d/*.key`, extended and legacy
+  formats) are classified by content: plaintext (`GPG-AGENT-UNPROTECTED-KEY`),
+  passphrase-protected (`GPG-AGENT-PROTECTED-KEY`), hardware shadow stub
+  (`GPG-AGENT-SHADOWED-KEY`, new classification `hardware-stub`), or
+  unrecognized (`GPG-AGENT-KEY-UNRECOGNIZED`, fails closed). `guardread`
+  refuses all of them. `fingerprint` reports them as `unsupported-kind`.
+- Scan reports include the `profile` used (JSON field and text header).
+- Files larger than the 32 KiB inspection prefix are classified on their full
+  content (bounded by `--max-file-size`) when that content is an agent key
+  file. A failed read reports `SCAN-READ-ERROR`.
+
+### Changed
+
+- Agent key classification tests consume specimens and expected verdicts
+  from the pinned external fixture corpus. CI checks it out at the pinned
+  commit.
+- `--profile workstation` now takes effect: GnuPG home internals are info
+  rather than unsafe. Secret verdicts are identical in both profiles.
+- Keyring-internal directories are no longer skipped or reported as secret
+  by name. The scan descends into them and classifies each file. The
+  directory finding is `sensitive`, and in the default profile it is P2.
+- The legacy `secring.gpg` reports as `GPG-KEYRING-SECRET-FILE` (unsafe in
+  both profiles).
+- The minimum Go version is 1.26.9. CI and Release use the digest-pinned
+  `goneat-tools-runner-glibc:v0.5.8` (Go 1.26.9, Goneat v0.6.2).
+
 ## [0.1.8] - 2026-09-24
 
 Public signing-anchor verification release. Dependencies and committed signing
