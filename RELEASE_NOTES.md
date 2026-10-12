@@ -1,7 +1,21 @@
 # Release Notes
 
 Landing page for the latest Decernor cut. Per-cut payload:
-[`docs/releases/v0.1.8.md`](docs/releases/v0.1.8.md).
+[`docs/releases/v0.1.9.md`](docs/releases/v0.1.9.md).
+
+## v0.1.9 — 2026-10-12
+
+GnuPG agent key files are classified by content: plaintext, passphrase
+protected, hardware shadow stub (new `hardware-stub` classification), or
+unrecognized, which fails closed. A GnuPG home whose keys live on a smartcard
+or TPM no longer reports its stubs as plaintext secret keys. `guardread`
+refuses every agent key file. `--profile workstation` now treats GnuPG home
+internals as info; secret verdicts are identical in both profiles. Scan
+reports include the profile used.
+
+Agent key tests consume specimens and expected verdicts from the pinned
+external fixture corpus. The minimum Go version is 1.26.9, and CI and release
+run Goneat v0.6.2 in the v0.5.8 toolbox runner.
 
 ## v0.1.8 — 2026-09-24
 
