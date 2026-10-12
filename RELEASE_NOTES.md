@@ -15,7 +15,7 @@ reports include the profile used.
 
 Agent key tests consume specimens and expected verdicts from the pinned
 external fixture corpus. The minimum Go version is 1.26.9, and CI and release
-run Goneat v0.6.2 in the v0.5.8 toolbox runner.
+run Goneat v0.6.3 in the v0.5.9 toolbox runner.
 
 ## v0.1.8 — 2026-09-24
 

@@ -37,7 +37,7 @@ reports its shadow stubs as plaintext secret keys.
 - The legacy `secring.gpg` reports as `GPG-KEYRING-SECRET-FILE` (unsafe in
   both profiles).
 - The minimum Go version is 1.26.9. CI and Release use the digest-pinned
-  `goneat-tools-runner-glibc:v0.5.8` (Go 1.26.9, Goneat v0.6.2).
+  `goneat-tools-runner-glibc:v0.5.9` (Go 1.26.9, Goneat v0.6.3).
 
 ## [0.1.8] - 2026-09-24
 

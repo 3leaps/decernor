@@ -170,7 +170,7 @@
       "version": "v3.0.1",
       "license": "Apache-2.0",
       "goneat": {
-        "version": "v0.6.2",
+        "version": "v0.6.3",
         "license": "MIT"
       }
     }

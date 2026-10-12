@@ -90,8 +90,8 @@ cat >"$MOCK_BIN/goneat" <<'EOF'
 set -euo pipefail
 printf 'goneat %s\n' "$*" >>"$SECURITY_GATE_TEST_LOG"
 if [ "${1:-}" = 'version' ]; then
-    echo 'goneat v0.6.2'
-    echo 'Module: v0.6.2'
+    echo 'goneat v0.6.3'
+    echo 'Module: v0.6.3'
 elif [ "${FAIL_GATE:-}" = 'license' ]; then
     exit 76
 elif [ "${1:-}" = 'dependencies' ]; then

@@ -323,8 +323,8 @@ func buildDecernor(t *testing.T) string {
 	return bin
 }
 
-// TestCIPinMatchesTestdataPin asserts the CI corpus checkout and the test pin
-// name the same commit.
+// TestCIPinMatchesTestdataPin asserts every workflow that runs the tests
+// checks out the corpus at the commit the test pin names.
 func TestCIPinMatchesTestdataPin(t *testing.T) {
 	repo, err := repoRoot()
 	if err != nil {
@@ -334,12 +334,14 @@ func TestCIPinMatchesTestdataPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ci, err := os.ReadFile(filepath.Join(repo, ".github", "workflows", "ci.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	want := "SYNTHCORPUS_COMMIT: " + pin.Commit
-	if !strings.Contains(string(ci), want) {
-		t.Fatalf("ci.yml does not pin %s", want)
+	for _, name := range []string{"ci.yml", "release.yml"} {
+		workflow, err := os.ReadFile(filepath.Join(repo, ".github", "workflows", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(workflow), want) {
+			t.Errorf("%s does not pin %s", name, want)
+		}
 	}
 }

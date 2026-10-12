@@ -1,8 +1,8 @@
 # CI
 
 Decernor uses GitHub Actions with the Fulmen goneat toolbox runner image
-(`ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.8`, pinned by digest;
-Go `1.26.9`, Goneat module `v0.6.2`).
+(`ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.5.9`, pinned by digest;
+Go `1.26.9`, Goneat module `v0.6.3`).
 
 The CI workflow currently verifies:
 
