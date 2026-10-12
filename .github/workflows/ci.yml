@@ -7,6 +7,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 # The goneat-tools-runner image owns Go, goneat, golangci-lint, and foundation
 # formatters. Security scanners are installed later at exact versions because
 # they are not bundled; they must not shadow image-owned build tools.
