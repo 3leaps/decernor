@@ -3,7 +3,7 @@
 Landing page for the latest Decernor cut. Per-cut payload:
 [`docs/releases/v0.1.9.md`](docs/releases/v0.1.9.md).
 
-## v0.1.9 — 2026-10-12
+## v0.1.9 — 2026-10-13
 
 GnuPG agent key files are classified by content: plaintext, passphrase
 protected, hardware shadow stub (new `hardware-stub` classification), or
